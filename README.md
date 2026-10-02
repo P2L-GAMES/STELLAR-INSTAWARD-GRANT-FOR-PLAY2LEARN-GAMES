@@ -95,9 +95,6 @@ Built by **Play2Learn Games**:
 
 ### Funding
 
-This project is supported by a **$5,000 Stellar Instaward** — a program funding
-short, clearly-scoped, execution-focused work that builds on Stellar. Work is funded to
-deliver specific, demonstrable outcomes within 30 days.
 
 ---
 
