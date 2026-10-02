@@ -65,3 +65,7 @@ Thumbs.db
 .vs/
 .idea/
 *.csproj.user
+
+# Internal project documents (Instawards SOW etc.)
+*.docx
+*.doc
