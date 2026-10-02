@@ -5,7 +5,6 @@
 [![Unity](https://img.shields.io/badge/Unity-6000.6.4f1-000000?logo=unity&logoColor=white)](https://unity.com)
 [![Platform](https://img.shields.io/badge/platform-WebGL-0075DA)](https://docs.unity3d.com/6000.0/Documentation/Manual/webgl.html)
 [![Network](https://img.shields.io/badge/network-Stellar%20Testnet-000000?logo=stellar&logoColor=white)](https://stellar.org)
-[![Funding](https://img.shields.io/badge/funding-Instawards%20%245000-7B3FE4)](https://www.stellar.org)
 
 ---
 
@@ -174,7 +173,3 @@ Play2Earn/
 ## License
 
 See [LICENSE](LICENSE).
-
-> **Note on naming:** the SOW is filed under *Play2Learn Games*, while the repository and
-> Unity project use *Play2Earn*. These refer to the same project — worth reconciling
-> before submission.
