@@ -57,6 +57,9 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
+# Burst / IL2CPP generated native code (regenerated on build)
+/Data/
+
 # OS files
 .DS_Store
 Thumbs.db
