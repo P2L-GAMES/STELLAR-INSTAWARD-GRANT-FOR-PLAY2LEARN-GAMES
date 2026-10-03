@@ -90,8 +90,6 @@ Built by **Play2Learn Games**:
 | Builder | Marshal Onah |
 
 - **Primary contact:** David Onyilimba — `onyilimbadavid@gmail.com`
-- **Ambassador chapter:** Nigeria
-- **Chapter lead:** David Ogoegbunem
 
 ---
 
