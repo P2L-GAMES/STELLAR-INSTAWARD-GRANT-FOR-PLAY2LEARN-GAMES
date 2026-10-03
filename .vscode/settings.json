@@ -67,5 +67,15 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "Play2Earn.slnx"
+    "dotnet.defaultSolution": "Play2Earn.slnx",
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "[csharp]": {
+        "editor.defaultFormatter": "ms-dotnettools.csharp",
+        "editor.formatOnPaste": true,
+        "editor.formatOnSave": true,
+        "editor.rulers": [
+            120
+        ]
+    }
 }

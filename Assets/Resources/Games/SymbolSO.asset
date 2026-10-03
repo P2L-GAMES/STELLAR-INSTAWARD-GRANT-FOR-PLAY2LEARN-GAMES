@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89cd3f220bf323a48b3c5e2a06253030, type: 3}
+  m_Name: SymbolSO
+  m_EditorClassIdentifier: Assembly-CSharp::Play2Earn.GameSO
+  Name: Symbol
+  Description: The Symbol Game
+  Icon: {fileID: 6883773245081210443, guid: acc83953007599f48a8450f884e085e2, type: 3}
+  GameType: 1
+  Questions:
+  - {fileID: 11400000, guid: 097de89ed26c85e44968d848f4a2b87a, type: 2}

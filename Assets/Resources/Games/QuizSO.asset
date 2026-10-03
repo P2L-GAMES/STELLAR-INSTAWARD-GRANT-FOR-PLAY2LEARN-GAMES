@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89cd3f220bf323a48b3c5e2a06253030, type: 3}
+  m_Name: QuizSO
+  m_EditorClassIdentifier: Assembly-CSharp::Play2Earn.GameSO
+  Name: Quiz
+  Description: The Quiz Game
+  Icon: {fileID: -1198045864799207927, guid: 4f26a4d5cfd4a8947a7e7ed08e9018b0, type: 3}
+  GameType: 2
+  Questions:
+  - {fileID: 11400000, guid: 097de89ed26c85e44968d848f4a2b87a, type: 2}
