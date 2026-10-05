@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Play2Earn.GameSO
   Name: Abbreviation
   Description: The Abbreviation Game
-  Icon: {fileID: 4144809993613378982, guid: 87b440ed8b5812541bcac52b3cc8080a, type: 3}
+  DurationInSeconds: 0
+  Icon: {fileID: -247693170054389915, guid: 26ded62e2f89f154faa80cbe965d2b69, type: 3}
   GameType: 0
   Questions:
-  - {fileID: 11400000, guid: 097de89ed26c85e44968d848f4a2b87a, type: 2}
+  - {fileID: 11400000, guid: 24ba6fd8d38b0844592075e8049e552d, type: 2}
+  - {fileID: 11400000, guid: 555e1750a726cdd479b059bbac14ae26, type: 2}

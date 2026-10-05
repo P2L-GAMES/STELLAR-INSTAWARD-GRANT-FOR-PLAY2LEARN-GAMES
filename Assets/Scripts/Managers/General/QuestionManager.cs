@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Play2Earn
@@ -17,6 +18,11 @@ namespace Play2Earn
                 }
             }
             return null;
+        }
+
+        public List<QuestionSO> GetQuestionsForGame(GameSO game)
+        {
+            return game.Questions.ToList();
         }
     }
 

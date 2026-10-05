@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Play2Earn.GameSO
   Name: Quiz
   Description: The Quiz Game
-  Icon: {fileID: -1198045864799207927, guid: 4f26a4d5cfd4a8947a7e7ed08e9018b0, type: 3}
+  DurationInSeconds: 20
+  Icon: {fileID: -8246371207439912048, guid: 1e4964cc35abc9946be2c1f5bfe65a59, type: 3}
   GameType: 2
   Questions:
   - {fileID: 11400000, guid: 097de89ed26c85e44968d848f4a2b87a, type: 2}
+  - {fileID: 11400000, guid: 83ffa7a8397209649a7b4bbac201f140, type: 2}

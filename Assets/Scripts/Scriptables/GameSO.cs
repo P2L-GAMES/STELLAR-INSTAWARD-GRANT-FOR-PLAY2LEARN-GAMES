@@ -7,6 +7,7 @@ namespace Play2Earn
     {
         public string Name;
         public string Description;
+        public int DurationInSeconds;
         public Sprite Icon;
         public GameType GameType;
         public QuestionSO[] Questions;

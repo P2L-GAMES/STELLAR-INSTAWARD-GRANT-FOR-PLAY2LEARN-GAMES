@@ -14,11 +14,17 @@ namespace Play2Earn
         [Header("SelectGame Button Panel")]
         [SerializeField] private Transform selectGameButtonPanel;
 
+        [Header("Start Game Button")]
+        [SerializeField] private Button startGameButton;
+
+        private GameSO selectedGame;
+
 
 
         void Start()
         {
             ResetUI();
+            RegisterListeners();
             PopulateSelectGameButtons();
         }
 
@@ -42,6 +48,8 @@ namespace Play2Earn
                 }
                 index++;
             }
+
+            selectGameButtonPanel.GetChild(0).GetComponent<Button>().onClick.Invoke();
         }
 
         private void OnSelectGameButtonClicked(GameType gameType)
@@ -49,8 +57,9 @@ namespace Play2Earn
             GameSO game = QuestionManager.Instance.GetGameByType(gameType);
             if (game != null)
             {
-                GameManager.Instance.SetCurrentGame(game);
-                UpdateCenterPanelImage(game);
+                selectedGame = game;
+                UpdateCenterPanelImage(selectedGame);
+                startGameButton.interactable = true;
             }
         }
 
@@ -66,6 +75,18 @@ namespace Play2Earn
                     image.sprite = game.Icon;
                 }
             }
+        }
+
+        private void HandleStartGameButtonClicked()
+        {
+            if (selectedGame != null)
+                GameEventManager.Instance.OnGameSelected?.Invoke(selectedGame);
+        }
+
+        private void RegisterListeners()
+        {
+            startGameButton.onClick.RemoveAllListeners();
+            startGameButton.onClick.AddListener(HandleStartGameButtonClicked);
         }
 
         private void ResetUI()
@@ -84,6 +105,8 @@ namespace Play2Earn
             {
                 buttonTransform.gameObject.SetActive(false);
             }
+
+            startGameButton.interactable = false;
         }
     }
 

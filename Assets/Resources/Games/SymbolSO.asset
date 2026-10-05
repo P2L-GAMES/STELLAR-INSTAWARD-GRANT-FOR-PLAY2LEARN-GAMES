@@ -14,7 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Play2Earn.GameSO
   Name: Symbol
   Description: The Symbol Game
-  Icon: {fileID: 6883773245081210443, guid: acc83953007599f48a8450f884e085e2, type: 3}
+  DurationInSeconds: 0
+  Icon: {fileID: 3668388630199354293, guid: d0dfca9b81030b742bd265553acaf470, type: 3}
   GameType: 1
   Questions:
-  - {fileID: 11400000, guid: 097de89ed26c85e44968d848f4a2b87a, type: 2}
+  - {fileID: 11400000, guid: 44ac535d4f5ab0f42a3d2d3adebaf361, type: 2}
+  - {fileID: 11400000, guid: 9e29d0371c2493a4fa2a4f61eb1d1071, type: 2}
+  - {fileID: 11400000, guid: aafe0823a3fac1d43aa8eee374b360db, type: 2}
