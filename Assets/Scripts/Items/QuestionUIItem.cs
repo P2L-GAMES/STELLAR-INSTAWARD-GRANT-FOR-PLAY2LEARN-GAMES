@@ -9,6 +9,7 @@ namespace Play2Earn
 
         [SerializeField] private Image backgroundImage;
         [SerializeField] private Image closedStateImage;
+        [SerializeField] private TMP_Text headerText;
         [SerializeField] private TMP_Text questionText;
         [SerializeField] private Image questionImage;
         public QuestionSO questionSO;
@@ -17,8 +18,10 @@ namespace Play2Earn
         {
             if (questionSO != null)
             {
+
                 questionText.text = questionSO.QuestionText;
                 questionImage.sprite = questionSO.QuestionImage;
+                closedStateImage.sprite = GameManager.Instance.currentGame.Icon;
             }
 
             SetClosedState(true);
@@ -27,6 +30,7 @@ namespace Play2Earn
         public void SetClosedState(bool isClosed)
         {
             closedStateImage.gameObject.SetActive(isClosed);
+            headerText.gameObject.SetActive(!isClosed);
         }
 
     }

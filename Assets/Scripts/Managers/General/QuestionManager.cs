@@ -24,6 +24,16 @@ namespace Play2Earn
         {
             return game.Questions.ToList();
         }
+
+        public List<string> GetOptionsForQuestion(QuestionSO question)
+        {
+            return question.Options.ToList();
+        }
+
+        public string GetCorrectAnswerForQuestion(QuestionSO question)
+        {
+            return question.Options[question.CorrectOptionIndex];
+        }
     }
 
 }

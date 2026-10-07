@@ -17,4 +17,4 @@ MonoBehaviour:
   Options:
   - answer 1
   - answer 2
-  CorrectOptionIndex: 2
+  CorrectOptionIndex: 0

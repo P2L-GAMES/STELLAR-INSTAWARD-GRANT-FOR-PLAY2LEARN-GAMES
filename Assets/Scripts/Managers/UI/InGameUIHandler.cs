@@ -12,6 +12,7 @@ namespace Play2Earn
         [SerializeField] private Transform questionPanel;
         [SerializeField] private Transform optionPanel;
         [SerializeField] private Button backButton;
+        [SerializeField] private Button nextButton;
 
         private QuestionSO currentQuestion;
 
@@ -22,7 +23,41 @@ namespace Play2Earn
 
         private void RegisterListeners()
         {
+            GameEventManager.Instance.OnQuestionAnswered += HandleQuestionAnswered;
             backButton.onClick.AddListener(OnBackButtonClicked);
+            nextButton.onClick.AddListener(LoadNextQuestion);
+        }
+
+        private void HandleQuestionAnswered(string selectedAnswer, string correctAnswer, bool isCorrect)
+        {
+            foreach (Transform child in optionPanel)
+            {
+                OptionUIItem optionUIItem = child.GetComponent<OptionUIItem>();
+                if (optionUIItem.value.Equals(selectedAnswer, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (isCorrect)
+                    {
+                        optionUIItem.MarkAsCorrect(true);
+                    }
+                    else
+                    {
+                        optionUIItem.MarkAsCorrect(false);
+                        HighlightCorrectAnswer();
+                    }
+                }
+
+                void HighlightCorrectAnswer()
+                {
+                    foreach (Transform optionChild in optionPanel)
+                    {
+                        OptionUIItem optionItem = optionChild.GetComponent<OptionUIItem>();
+                        if (optionItem.value.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase))
+                        {
+                            optionItem.MarkAsCorrect(true);
+                        }
+                    }
+                }
+            }
         }
 
         private void OnBackButtonClicked()
@@ -48,19 +83,25 @@ namespace Play2Earn
                 }
             }
 
-            ActivateQuestion(0);
+            ActivateQuestion(GameManager.Instance.currentQuestionIndex);
 
         }
 
         public void ActivateQuestion(int questionIndex)
         {
-            if (questionIndex < questionPanel.childCount)
+            foreach (Transform child in questionPanel)
+            {
+                QuestionUIItem questionUIItem = child.GetComponent<QuestionUIItem>();
+                questionUIItem.SetClosedState(true);
+            }
+
+            if (questionIndex < QuestionManager.Instance.GetQuestionsForGame(GameManager.Instance.currentGame).Count)
             {
                 Transform questionItemTransform = questionPanel.GetChild(questionIndex);
                 QuestionUIItem questionUIItem = questionItemTransform.GetComponent<QuestionUIItem>();
                 questionUIItem.SetClosedState(false);
 
-
+                GameEventManager.Instance.OnQuestionSelected?.Invoke(questionUIItem.questionSO);
                 PopulateOptionPanel(questionUIItem.questionSO.Options.ToList());
             }
         }
@@ -68,23 +109,40 @@ namespace Play2Earn
         public void PopulateOptionPanel(List<string> options)
         {
             foreach (Transform child in optionPanel)
-                child.gameObject.SetActive(false);
+            {
+                OptionUIItem optionUIItem = child.GetComponent<OptionUIItem>();
+                optionUIItem.Hide();
+            }
+
 
             for (int i = 0; i < options.Count; i++)
             {
                 if (i < optionPanel.childCount)
                 {
-                    Transform optionItemTransform = optionPanel.GetChild(i);
-                    TMP_Text optionUIItem = optionItemTransform.GetComponent<TMP_Text>();
-                    optionUIItem.text = options[i];
-                    optionItemTransform.gameObject.SetActive(true);
+                    OptionUIItem optionItemTransform = optionPanel.GetChild(i).GetComponent<OptionUIItem>();
+                    optionItemTransform.value = options[i];
+                    optionItemTransform.Init();
                 }
+            }
+        }
+
+        public void LoadNextQuestion()
+        {
+            if (GameManager.Instance.currentQuestionIndex < questionPanel.childCount)
+            {
+                ActivateQuestion(GameManager.Instance.currentQuestionIndex);
+            }
+            else
+            {
+                Debug.Log("All questions answered. Game Over!");
             }
         }
 
         public void OnDisable()
         {
             backButton.onClick.RemoveAllListeners();
+            nextButton.onClick.RemoveAllListeners();
+            GameEventManager.Instance.OnQuestionAnswered -= HandleQuestionAnswered;
         }
     }
 }

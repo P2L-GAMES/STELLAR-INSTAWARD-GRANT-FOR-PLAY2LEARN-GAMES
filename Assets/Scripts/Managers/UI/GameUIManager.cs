@@ -4,8 +4,8 @@ namespace Play2Earn
 {
     public class GameUIManager : MonoBehaviour
     {
-        [SerializeField] private MainMenuUIHandler mainMenuPanel;
-        [SerializeField] private InGameUIHandler inGamePanel;
+        [SerializeField] public MainMenuUIHandler mainMenuPanel;
+        [SerializeField] public InGameUIHandler inGamePanel;
 
         public void Start()
         {

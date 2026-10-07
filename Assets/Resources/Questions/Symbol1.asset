@@ -16,4 +16,4 @@ MonoBehaviour:
   QuestionImage: {fileID: 0}
   Options:
   - answer 1
-  CorrectOptionIndex: 2
+  CorrectOptionIndex: 0
