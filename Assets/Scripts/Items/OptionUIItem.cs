@@ -25,7 +25,7 @@ namespace Play2Earn
                 optionButton.onClick.AddListener(OnOptionSelected);
                 gameObject.SetActive(true);
                 backgroundImage.color = defaultColor;
-
+                LockOption(false);
             }
         }
 
@@ -44,6 +44,10 @@ namespace Play2Earn
         }
 
 
+        public void LockOption(bool value)
+        {
+            optionButton.interactable = !value;
+        }
 
         public void Hide()
         {

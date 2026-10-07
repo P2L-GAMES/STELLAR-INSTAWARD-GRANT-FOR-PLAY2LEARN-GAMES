@@ -23,9 +23,19 @@ namespace Play2Earn
 
         private void RegisterListeners()
         {
+            GameEventManager.Instance.OnOptionSelected += HandleOptionSelected;
             GameEventManager.Instance.OnQuestionAnswered += HandleQuestionAnswered;
             backButton.onClick.AddListener(OnBackButtonClicked);
             nextButton.onClick.AddListener(LoadNextQuestion);
+        }
+
+        private void HandleOptionSelected(string obj)
+        {
+            foreach (Transform child in optionPanel)
+            {
+                OptionUIItem optionUIItem = child.GetComponent<OptionUIItem>();
+                optionUIItem.LockOption(true);
+            }
         }
 
         private void HandleQuestionAnswered(string selectedAnswer, string correctAnswer, bool isCorrect)
