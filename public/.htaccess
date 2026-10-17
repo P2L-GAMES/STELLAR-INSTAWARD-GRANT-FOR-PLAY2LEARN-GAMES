@@ -1,0 +1,54 @@
+# Play2Learn Games — Apache config for static hosting (cPanel / shared hosting).
+# Vite copies this file verbatim into dist/ during the build.
+
+DirectoryIndex index.html
+
+# Some shared hosts serve .js as text/plain. Browsers then refuse the
+# <script type="module"> and the page renders as unstyled text, so the MIME
+# types are pinned explicitly.
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType image/svg+xml .svg
+  AddType image/png .png
+  AddType image/jpeg .jpg .jpeg
+  AddType application/json .json
+  AddType font/woff2 .woff2
+</IfModule>
+
+# Expiry for content-hashed build output. Filenames change whenever their
+# contents do, so these can be cached indefinitely.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+# index.html must never be cached, or a deploy will keep serving the old
+# asset hashes.
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Compression. Falls back silently when the module is unavailable.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css
+  AddOutputFilterByType DEFLATE application/javascript text/javascript
+  AddOutputFilterByType DEFLATE application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css
+  AddOutputFilterByType BROTLI_COMPRESS application/javascript text/javascript
+  AddOutputFilterByType BROTLI_COMPRESS application/json image/svg+xml
+</IfModule>
+
+# Block access to source files, just in case any get uploaded alongside.
+<FilesMatch "\.(map|ts|tsx|json|lock|log)$">
+  Require all denied
+</FilesMatch>

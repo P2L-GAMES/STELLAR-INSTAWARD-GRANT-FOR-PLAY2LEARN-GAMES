@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Stellar — Web3 Quiz Lobby</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- TOP HUD -->
+  <header class="hud-top">
+    <div class="player-chip">
+      <div class="avatar">🦧</div>
+      <div class="player-meta">
+        <span class="player-id" id="playerId">Not connected</span>
+        <span class="player-rank">🔥 MINER'S</span>
+      </div>
+    </div>
+
+    <div class="stats-pill">
+      <span class="label">Points Earned</span>
+      <span class="coin gold">＄</span>
+      <span id="pointsVal">0 pts</span>
+      <span class="divider"></span>
+      <span class="label">Cash Earned</span>
+      <span class="coin blue">ⓢ</span>
+      <span id="cashVal">USD 5000</span>
+      <button id="addCashBtn" title="Add cash">+</button>
+    </div>
+
+    <button id="connectBtn" class="connect-btn">Connect</button>
+  </header>
+
+  <!-- LEFT BENEFITS -->
+  <aside class="benefits glass" id="benefitsPanel">
+    <h3>Unlock These Awesome Benefits:</h3>
+    <p>Learn crypto and Web3 through fun,<br/>interactive games.</p>
+    <p>Connect with fellow learners and<br/>Web3 enthusiasts.</p>
+    <p>Earn tokens and badges for<br/>completing challenges.</p>
+  </aside>
+
+  <!-- CENTER TITLE -->
+  <div class="center-title">
+    <h1 id="gameTitle">WEB3 QUIZ</h1>
+    <p id="hint">Select a game, then press PLAY to begin</p>
+  </div>
+
+  <!-- RIGHT GAME SELECT -->
+  <aside class="game-select" id="gameSelect">
+    <div class="select-header">Select Games</div>
+    <button class="game-btn active" data-game="quiz">Quiz</button>
+  </aside>
+
+  <button id="playBtn" class="play-btn">PLAY</button>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="loader"><div class="spin"></div><p>Loading arena…</p></div>
+
+  <!-- Landscape gate (mobile portrait) -->
+  <div id="rotateGate" aria-hidden="true">
+    <div class="phone">📱</div>
+    <h2>Rotate your device</h2>
+    <p>This arena plays in <strong>landscape</strong>.<br/>Turn your phone sideways to continue.</p>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
