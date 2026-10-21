@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import coverTextureUrl from '@/assets/cover1.png';
-import { CAMERA_DRIFT, DECK_BOUNDS, DECK_FRAMING, LOADER_FALLBACK_MS, SCORING } from '@/config';
+import { CAMERA_DRIFT, DECK_BOUNDS, DECK_FRAMING, LOADER_FALLBACK_MS } from '@/config';
 import { AssetLoader } from '@/core/AssetLoader';
 import { Engine } from '@/core/Engine';
 import { EventBus } from '@/core/EventBus';
@@ -106,20 +106,24 @@ export function createApp(canvas: HTMLCanvasElement): App {
       return;
     }
     const points = player.points;
-    if (points <= 0) {
+    const xlm = player.xlm;
+    if (points <= 0 || xlm <= 0) {
       ui.toast.show('Nothing to cash out yet');
       return;
     }
-    const amountXlm = (points * SCORING.xlmPerPoint).toFixed(7);
+    const amountXlm = xlm.toFixed(7);
     ui.toast.show('Cashing out…');
     try {
       const payout = await payoutService.payout(player.wallet, amountXlm);
       player.resetEarnings();
       ui.toast.show(`Paid ${amountXlm} XLM · ${payout.txHash.slice(0, 8)}…`);
     } catch (error) {
-      ui.toast.show(
-        `Payout failed: ${(error as Error)?.message ?? String(error)}`,
-      );
+      const err = error as Error & { result_codes?: Record<string, string>; extras?: unknown };
+      let detail = err.message ?? String(error);
+      if (err.result_codes) {
+        detail += ` · codes: ${JSON.stringify(err.result_codes)}`;
+      }
+      ui.toast.show(`Payout failed: ${detail}`);
     }
   }
 

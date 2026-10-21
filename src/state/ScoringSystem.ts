@@ -33,9 +33,10 @@ export class ScoringSystem {
     this.events.emit('player:xlm', { total: this.xlmValue });
   }
 
-  /** Award a quiz completion: points plus the derived XLM reward (deferred until cash-out). */
+  /** Award a quiz completion: points plus the accrued XLM reward (points × xlmPerPoint). */
   awardCorrectAnswer(): void {
     this.awardPoints(this.rules.pointsPerCorrect);
+    this.awardXlm(this.rules.pointsPerCorrect * this.rules.xlmPerPoint);
   }
 
   restore(points: number, xlm: number): void {
