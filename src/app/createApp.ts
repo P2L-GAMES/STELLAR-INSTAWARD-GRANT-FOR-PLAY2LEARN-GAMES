@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import coverTextureUrl from '@/assets/cover1.png';
-import { CAMERA_DRIFT, DECK_BOUNDS, DECK_FRAMING, LOADER_FALLBACK_MS } from '@/config';
+import { CAMERA_DRIFT, DECK_BOUNDS, DECK_FRAMING, LOADER_FALLBACK_MS, SCORING } from '@/config';
 import { AssetLoader } from '@/core/AssetLoader';
 import { Engine } from '@/core/Engine';
 import { EventBus } from '@/core/EventBus';
 import { Loop } from '@/core/Loop';
 import { Viewport } from '@/core/Viewport';
 import { CardTrio } from '@/entities/CardTrio';
+import { FreighterWallet, PayoutService, StellarClient } from '@/stellar';
 import { GameRegistry } from '@/game/GameRegistry';
 import { LocalSessionStore, Leaderboard, Player, ScoringSystem } from '@/state';
 import { UIRoot } from '@/ui';
@@ -55,6 +56,11 @@ export function createApp(canvas: HTMLCanvasElement): App {
   const leaderboard = new Leaderboard(store);
   void player.hydrate();
 
+  // ---- Stellar (Phase C) ----
+  const walletService = new FreighterWallet();
+  const stellarClient = new StellarClient();
+  const payoutService = new PayoutService(stellarClient);
+
   const registry = new GameRegistry(player, events);
 
   // ---- cards ----
@@ -97,6 +103,26 @@ export function createApp(canvas: HTMLCanvasElement): App {
     ui.gameLayer.innerHTML = '';
   });
 
+  // Payout quiz earnings to the connected wallet when a round finishes.
+  events.on('quiz:finished', async ({ correctCount }) => {
+    if (correctCount <= 0 || !player.wallet || player.connectionState !== 'connected') {
+      return;
+    }
+    const amountXlm = (
+      correctCount * SCORING.pointsPerCorrect * SCORING.cashPerPoint
+    ).toFixed(7);
+    try {
+      const payout = await payoutService.payout(player.wallet, amountXlm);
+      ui.toast.show(
+        `Paid ${amountXlm} XLM · ${payout.txHash.slice(0, 8)}…`,
+      );
+    } catch (error) {
+      ui.toast.show(
+        `Payout failed: ${(error as Error)?.message ?? String(error)}`,
+      );
+    }
+  });
+
   async function handleConnect(): Promise<void> {
     if (isBlocked()) return;
     if (player.connectionState === 'connected') {
@@ -105,10 +131,16 @@ export function createApp(canvas: HTMLCanvasElement): App {
       return;
     }
     await player.beginConnect();
-    // Placeholder identity until the Stellar layer (Phase C) provides a
-    // real Freighter public key. Stored under this local id for now.
-    await player.completeConnect(`LOCAL${player.id.toUpperCase()}`);
-    ui.toast.show('Wallet connected (testnet placeholder)');
+    try {
+      const { publicKey } = await walletService.connect();
+      await player.completeConnect(publicKey);
+      ui.toast.show(`Wallet connected: ${player.walletShort}`);
+    } catch (error) {
+      await player.cancelConnect();
+      ui.toast.show(
+        `Wallet connect failed: ${(error as Error)?.message ?? String(error)}`,
+      );
+    }
   }
 
   function selectMode(modeId: GameModeId): void {
