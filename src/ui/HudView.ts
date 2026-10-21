@@ -6,13 +6,13 @@ export interface HudElements {
   readonly playerId: HTMLElement;
   readonly points: HTMLElement;
   readonly cash: HTMLElement;
-  readonly addCash: HTMLButtonElement;
+  readonly payout: HTMLButtonElement;
   readonly connect: HTMLButtonElement;
 }
 
 export interface HudHandlers {
   readonly onConnect: () => void;
-  readonly onAddCash: () => void;
+  readonly onPayout: () => void;
 }
 
 export class HudView {
@@ -41,15 +41,15 @@ export class HudView {
       }),
     );
 
-    elements.addCash.addEventListener('click', this.handleAddCash);
+    elements.payout.addEventListener('click', this.handlePayout);
     elements.connect.addEventListener('click', this.handleConnect);
 
     this.renderIdentity();
     this.renderTotals();
   }
 
-  private readonly handleAddCash = (): void => {
-    this.handlers.onAddCash();
+  private readonly handlePayout = (): void => {
+    this.handlers.onPayout();
   };
 
   private readonly handleConnect = (): void => {
@@ -67,7 +67,7 @@ export class HudView {
 
   dispose(): void {
     for (const unsubscribe of this.subscriptions.splice(0)) unsubscribe();
-    this.elements.addCash.removeEventListener('click', this.handleAddCash);
+    this.elements.payout.removeEventListener('click', this.handlePayout);
     this.elements.connect.removeEventListener('click', this.handleConnect);
   }
 }

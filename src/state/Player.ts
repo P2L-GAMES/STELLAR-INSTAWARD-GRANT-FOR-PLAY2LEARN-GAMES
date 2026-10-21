@@ -131,6 +131,12 @@ export class Player {
     void this.persist();
   }
 
+  /** Reset points and cash to their starting values and persist. */
+  resetEarnings(): void {
+    this.scoring.reset();
+    void this.persist();
+  }
+
   snapshot(): PlayerSnapshot {
     return {
       id: this.id,

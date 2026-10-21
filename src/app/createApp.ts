@@ -73,11 +73,7 @@ export function createApp(canvas: HTMLCanvasElement): App {
   const ui = new UIRoot(events, player, {
     hud: {
       onConnect: () => void handleConnect(),
-      onAddCash: () => {
-        if (isBlocked()) return;
-        player.awardCorrectAnswer();
-        ui.toast.show('Demo faucet: +100 pts and +USD 50');
-      },
+      onPayout: () => void handlePayout(),
     },
     onModeSelect: (modeId) => selectMode(modeId),
     onPlay: (modeId) => void startMode(modeId),
@@ -103,25 +99,29 @@ export function createApp(canvas: HTMLCanvasElement): App {
     ui.gameLayer.innerHTML = '';
   });
 
-  // Payout quiz earnings to the connected wallet when a round finishes.
-  events.on('quiz:finished', async ({ correctCount }) => {
-    if (correctCount <= 0 || !player.wallet || player.connectionState !== 'connected') {
+  async function handlePayout(): Promise<void> {
+    if (isBlocked()) return;
+    if (player.connectionState !== 'connected' || !player.wallet) {
+      ui.toast.show('Connect your wallet to cash out');
       return;
     }
-    const amountXlm = (
-      correctCount * SCORING.pointsPerCorrect * SCORING.cashPerPoint
-    ).toFixed(7);
+    const points = player.points;
+    if (points <= 0) {
+      ui.toast.show('Nothing to cash out yet');
+      return;
+    }
+    const amountXlm = (points * SCORING.cashPerPoint).toFixed(7);
+    ui.toast.show('Cashing out…');
     try {
       const payout = await payoutService.payout(player.wallet, amountXlm);
-      ui.toast.show(
-        `Paid ${amountXlm} XLM · ${payout.txHash.slice(0, 8)}…`,
-      );
+      player.resetEarnings();
+      ui.toast.show(`Paid ${amountXlm} XLM · ${payout.txHash.slice(0, 8)}…`);
     } catch (error) {
       ui.toast.show(
         `Payout failed: ${(error as Error)?.message ?? String(error)}`,
       );
     }
-  });
+  }
 
   async function handleConnect(): Promise<void> {
     if (isBlocked()) return;
