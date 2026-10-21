@@ -78,8 +78,9 @@ export const COLORS = {
 
 export const SCORING = {
   pointsPerCorrect: 100,
-  cashPerPoint: 0.5,
-  startingCash: 5000,
+  /** Points → XLM conversion rate used when cashing out. */
+  xlmPerPoint: 0.5,
+  startingXlm: 0,
 } as const satisfies ScoringRules;
 
 export const STORAGE_KEYS = {

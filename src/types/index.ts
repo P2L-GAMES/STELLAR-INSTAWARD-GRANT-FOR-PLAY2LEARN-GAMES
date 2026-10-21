@@ -49,7 +49,7 @@ export interface PlayerSnapshot {
   readonly rank: string;
   readonly walletAddress: string | null;
   readonly points: number;
-  readonly cash: number;
+  readonly xlm: number;
   readonly activity: PlayerActivityState;
 }
 
@@ -57,7 +57,7 @@ export interface LeaderboardEntry {
   readonly id: string;
   readonly displayName: string;
   readonly points: number;
-  readonly cash: number;
+  readonly xlm: number;
   readonly walletAddress: string | null;
 }
 
@@ -73,8 +73,10 @@ export interface CardTransformSpec {
 
 export interface ScoringRules {
   readonly pointsPerCorrect: number;
-  readonly cashPerPoint: number;
-  readonly startingCash: number;
+  /** XLM paid out per accumulated point when the player cashes out. */
+  readonly xlmPerPoint: number;
+  /** Starting XLM balance (testnet demo — typically 0). */
+  readonly startingXlm: number;
 }
 
 export interface AppEvents extends Record<string, unknown> {
@@ -103,7 +105,7 @@ export interface AppEvents extends Record<string, unknown> {
     results: AnswerResult[];
   };
   'player:points': { total: number };
-  'player:cash': { total: number };
+  'player:xlm': { total: number };
   'player:connection': PlayerConnectionState;
   'player:activity': PlayerActivityState;
   'player:wallet': { address: string | null };

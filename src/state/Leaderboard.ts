@@ -11,10 +11,10 @@ export class Leaderboard {
         id: snapshot.id,
         displayName: snapshot.displayName,
         points: snapshot.points,
-        cash: snapshot.cash,
+        xlm: snapshot.xlm,
         walletAddress: snapshot.walletAddress,
       }))
-      .sort((a, b) => b.points - a.points || b.cash - a.cash)
+      .sort((a, b) => b.points - a.points || b.xlm - a.xlm)
       .slice(0, limit);
   }
 

@@ -28,8 +28,8 @@ export class Player {
     return this.scoring.points;
   }
 
-  get cash(): number {
-    return this.scoring.cash;
+  get xlm(): number {
+    return this.scoring.xlm;
   }
 
   get connectionState(): PlayerConnectionState {
@@ -69,13 +69,13 @@ export class Player {
   async hydrate(): Promise<void> {
     const snapshot = await this.store.load(this.id);
     if (!snapshot) {
-      this.scoring.restore(0, this.scoring.cash);
+      this.scoring.restore(0, this.scoring.xlm);
       return;
     }
     this.displayName = snapshot.displayName;
     this.rank = snapshot.rank;
     this.walletAddress = snapshot.walletAddress;
-    this.scoring.restore(snapshot.points, snapshot.cash);
+    this.scoring.restore(snapshot.points, snapshot.xlm);
     this.events.emit('player:wallet', { address: this.walletAddress });
   }
 
@@ -131,7 +131,7 @@ export class Player {
     void this.persist();
   }
 
-  /** Reset points and cash to their starting values and persist. */
+  /** Reset points and XLM to their starting values and persist. */
   resetEarnings(): void {
     this.scoring.reset();
     void this.persist();
@@ -144,7 +144,7 @@ export class Player {
       rank: this.rank,
       walletAddress: this.walletAddress,
       points: this.points,
-      cash: this.cash,
+      xlm: this.xlm,
       activity: this.activity.state,
     };
   }

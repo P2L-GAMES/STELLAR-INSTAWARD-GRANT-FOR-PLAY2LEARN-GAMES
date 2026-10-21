@@ -51,7 +51,7 @@ export class UIRoot {
       {
         playerId: requireElement('playerId'),
         points: requireElement('pointsVal'),
-        cash: requireElement('cashVal'),
+        xlm: requireElement('cashVal'),
         payout: requireElement<HTMLButtonElement>('payoutBtn'),
         connect: requireElement<HTMLButtonElement>('connectBtn'),
       },

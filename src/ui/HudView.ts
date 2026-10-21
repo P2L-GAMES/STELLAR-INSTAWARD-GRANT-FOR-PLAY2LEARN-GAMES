@@ -5,7 +5,7 @@ import type { AppEvents, Unsubscribe } from '@/types';
 export interface HudElements {
   readonly playerId: HTMLElement;
   readonly points: HTMLElement;
-  readonly cash: HTMLElement;
+  readonly xlm: HTMLElement;
   readonly payout: HTMLButtonElement;
   readonly connect: HTMLButtonElement;
 }
@@ -28,8 +28,8 @@ export class HudView {
       events.on('player:points', ({ total }) => {
         elements.points.textContent = `${total} pts`;
       }),
-      events.on('player:cash', ({ total }) => {
-        elements.cash.textContent = `USD ${total}`;
+      events.on('player:xlm', ({ total }) => {
+        elements.xlm.textContent = `XLM ${total}`;
       }),
       events.on('player:connection', (state) => {
         const connected = state === 'connected';
@@ -62,7 +62,7 @@ export class HudView {
 
   private renderTotals(): void {
     this.elements.points.textContent = `${this.player.points} pts`;
-    this.elements.cash.textContent = `USD ${this.player.cash}`;
+    this.elements.xlm.textContent = `XLM ${this.player.xlm}`;
   }
 
   dispose(): void {

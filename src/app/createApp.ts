@@ -110,7 +110,7 @@ export function createApp(canvas: HTMLCanvasElement): App {
       ui.toast.show('Nothing to cash out yet');
       return;
     }
-    const amountXlm = (points * SCORING.cashPerPoint).toFixed(7);
+    const amountXlm = (points * SCORING.xlmPerPoint).toFixed(7);
     ui.toast.show('Cashing out…');
     try {
       const payout = await payoutService.payout(player.wallet, amountXlm);

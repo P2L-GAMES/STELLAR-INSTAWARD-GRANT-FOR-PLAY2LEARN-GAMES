@@ -4,21 +4,21 @@ import type { AppEvents, ScoringRules } from '@/types';
 
 export class ScoringSystem {
   private pointsValue = 0;
-  private cashValue: number;
+  private xlmValue: number;
 
   constructor(
     private readonly events: EventBus<AppEvents>,
     private readonly rules: ScoringRules = SCORING,
   ) {
-    this.cashValue = rules.startingCash;
+    this.xlmValue = rules.startingXlm;
   }
 
   get points(): number {
     return this.pointsValue;
   }
 
-  get cash(): number {
-    return this.cashValue;
+  get xlm(): number {
+    return this.xlmValue;
   }
 
   awardPoints(points: number): void {
@@ -27,26 +27,25 @@ export class ScoringSystem {
     this.events.emit('player:points', { total: this.pointsValue });
   }
 
-  awardCash(cash: number): void {
-    if (!Number.isFinite(cash) || cash <= 0) return;
-    this.cashValue += cash;
-    this.events.emit('player:cash', { total: this.cashValue });
+  awardXlm(xlm: number): void {
+    if (!Number.isFinite(xlm) || xlm <= 0) return;
+    this.xlmValue += xlm;
+    this.events.emit('player:xlm', { total: this.xlmValue });
   }
 
-  /** Award a quiz completion: points plus the derived cash reward. */
+  /** Award a quiz completion: points plus the derived XLM reward (deferred until cash-out). */
   awardCorrectAnswer(): void {
     this.awardPoints(this.rules.pointsPerCorrect);
-    this.awardCash(this.rules.pointsPerCorrect * this.rules.cashPerPoint);
   }
 
-  restore(points: number, cash: number): void {
+  restore(points: number, xlm: number): void {
     this.pointsValue = Math.max(0, points);
-    this.cashValue = Math.max(0, cash);
+    this.xlmValue = Math.max(0, xlm);
     this.events.emit('player:points', { total: this.pointsValue });
-    this.events.emit('player:cash', { total: this.cashValue });
+    this.events.emit('player:xlm', { total: this.xlmValue });
   }
 
   reset(): void {
-    this.restore(0, this.rules.startingCash);
+    this.restore(0, this.rules.startingXlm);
   }
 }
