@@ -156,6 +156,7 @@ export class QuizGame {
   private finish(reason: QuizEndReason): void {
     if (this.phase === 'finished') return;
     this.phase = 'finished';
+    this.recordUnanswered();
     this.events.emit('quiz:finished', {
       reason,
       correctCount: this.correctCount,
@@ -163,6 +164,24 @@ export class QuizGame {
       results: [...this.results],
     });
     this.hooks.onFinish(reason);
+  }
+
+  /**
+   * Running out of time can end the round part-way through, leaving questions
+   * that were never reached. Record them as unanswered so the results screen
+   * accounts for every question instead of silently dropping them.
+   */
+  private recordUnanswered(): void {
+    const seen = new Set(this.results.map((result) => result.questionId));
+    for (const question of this.definition.questions) {
+      if (seen.has(question.id)) continue;
+      this.results.push({
+        questionId: question.id,
+        selectedAnswerId: null,
+        correct: false,
+        passed: true,
+      });
+    }
   }
 
   private emitQuestion(): void {

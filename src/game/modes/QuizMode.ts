@@ -42,6 +42,7 @@ export class QuizMode implements GameMode {
       events,
       () => this.player.points,
       () => this.context.requestExit(),
+      () => this.game.start(),
     );
 
     // A card only flips when a new question is presented, i.e. on Next.

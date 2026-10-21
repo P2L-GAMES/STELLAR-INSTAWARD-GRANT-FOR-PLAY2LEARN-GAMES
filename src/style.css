@@ -291,25 +291,94 @@ body.in-game .play-btn { display:none; }
 }
 .quiz-next:hover { box-shadow:0 0 32px rgba(160,90,255,.75); }
 
+/* ---------- POST-GAME RESULTS ---------- */
 .quiz-results {
-  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  display:flex; flex-direction:column; align-items:center; gap:12px;
-  padding:34px 46px; text-align:center;
-  background:rgba(12,6,26,.95); border:1px solid rgba(255,204,0,.35); border-radius:12px;
-  backdrop-filter:blur(8px);
-  box-shadow:0 0 0 100vmax rgba(5,7,15,.55);
+  position:absolute; inset:0; z-index:40;
+  display:flex; justify-content:center;
+  padding:clamp(14px,8.6vh,62px) clamp(16px,3vw,48px) clamp(16px,4vh,34px);
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 24%, rgba(101,20,178,.62) 0%, rgba(58,11,106,.4) 42%, rgba(8,7,12,0) 74%),
+    linear-gradient(180deg, #1b1e19 0%, #15170f 52%, #0c0d0a 100%);
+}
+.quiz-results-inner {
+  display:flex; flex-direction:column; align-items:center;
+  width:100%; max-width:1160px; min-height:0;
+  gap:clamp(8px,3.4vh,25px);
 }
 .quiz-results-title {
-  font-family:'Orbitron',sans-serif; font-weight:900; font-size:26px;
-  color:var(--gold); letter-spacing:2px;
+  font-family:'Orbitron',sans-serif; font-weight:900;
+  font-size:clamp(26px,4.2vw,44px); letter-spacing:.14em; line-height:1.1;
+  color:var(--gold); text-align:center;
+  text-shadow:0 0 28px rgba(255,215,1,.32);
 }
-.quiz-results-detail { font-size:15px; opacity:.85; }
+.quiz-results-score {
+  font-family:'Orbitron',sans-serif; font-weight:700;
+  font-size:clamp(12px,1.5vw,19px); letter-spacing:.12em;
+  color:#fff; text-align:center;
+}
+.quiz-results-columns {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:clamp(16px,3.2vw,84px);
+  width:100%; flex:1 1 auto; min-height:0;
+}
+.quiz-results-col { display:flex; flex-direction:column; gap:clamp(10px,7.4vh,54px); min-height:0; }
+.quiz-results-col-title {
+  font-family:'Orbitron',sans-serif; font-weight:700;
+  font-size:clamp(10px,1.1vw,15px); letter-spacing:.06em;
+  color:#fff; text-align:center; opacity:.95;
+}
+.quiz-results-list {
+  display:flex; flex-direction:column; gap:clamp(8px,6.2vh,45px);
+  overflow-y:auto; min-height:0; padding-right:2px;
+}
+/* Card art is a two-tone plate: prompt over the darker left 54.4%,
+   answer over the lighter right 45.6%. Text padding lives on the cells
+   (not the card) so the text split lands exactly on the art's seam. */
+.quiz-result-card {
+  display:flex; align-items:center;
+  height:clamp(46px,9.7vh,70px); overflow:hidden;
+  background-image:var(--result-card-bg);
+  background-size:100% 100%; background-repeat:no-repeat;
+  border:0; border-radius:0;
+}
+.quiz-result-question {
+  flex:0 0 54.4%; min-width:0;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+  overflow:hidden;
+  padding:0 clamp(10px,1.5vw,22px) 0 clamp(12px,1.5vw,22px);
+  font-size:clamp(10px,.95vw,13px); line-height:1.35; color:#f3f3f4;
+}
+.quiz-result-answer {
+  flex:1 1 auto; min-width:0; text-align:right;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3;
+  overflow:hidden;
+  padding:0 clamp(12px,1.5vw,22px) 0 clamp(10px,1.5vw,22px);
+  font-size:clamp(10px,.95vw,13px); line-height:1.35; color:#fff; opacity:.92;
+}
+.quiz-result-empty {
+  display:flex; align-items:center; justify-content:center;
+  height:clamp(46px,9.7vh,70px);
+  background-image:var(--result-card-bg);
+  background-size:100% 100%; background-repeat:no-repeat;
+  font-size:clamp(10px,.95vw,13px); color:#fff; opacity:.42;
+}
+.quiz-results-footer { display:flex; justify-content:flex-end; width:100%; padding-top:clamp(2px,1vh,12px); }
+.quiz-continue {
+  min-height:44px; padding:10px 34px; cursor:pointer;
+  font-family:'Orbitron',sans-serif; font-weight:700; font-size:14px; letter-spacing:.06em;
+  color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:8px;
+  background:linear-gradient(180deg, #a97fce, #8a5cb4);
+  box-shadow:0 0 22px rgba(137,102,166,.45);
+}
+.quiz-continue:hover { filter:brightness(1.12); }
 .quiz-replay {
-  margin-top:6px; padding:10px 26px; min-height:42px; cursor:pointer;
-  background:linear-gradient(180deg, #7a4bc0, #4a2d7a); border:1px solid #c9a6ff;
-  color:#fff; border-radius:6px; font-family:'Orbitron',sans-serif; font-weight:700; font-size:14px;
+  min-height:44px; padding:10px 34px; cursor:pointer; margin-right:12px;
+  font-family:'Orbitron',sans-serif; font-weight:700; font-size:14px; letter-spacing:.06em;
+  color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:8px;
+  background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
 }
-.quiz-replay:hover { filter:brightness(1.15); }
+.quiz-replay:hover { filter:brightness(1.2); background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08)); }
 
 /* Keep the desktop layout on phones — only text and padding shrink, no
    repositioning, so buttons never change size or orientation. */
@@ -331,6 +400,17 @@ body.in-game .play-btn { display:none; }
   .quiz-answers { gap:10px; padding:0 16px; bottom:86px; }
   .quiz-answer { font-size:11px; padding:7px 9px; }
   .quiz-next { min-height:40px; font-size:13px; }
+  .quiz-results { padding:10px 16px 12px; }
+  .quiz-results-inner { gap:6px; }
+  .quiz-results-col { gap:8px; }
+  .quiz-results-list { gap:8px; }
+  .quiz-result-card { height:38px; }
+  .quiz-result-empty { height:38px; }
+  .quiz-result-question, .quiz-result-answer {
+    font-size:10px;
+    -webkit-line-clamp:2;
+    padding:0 8px;
+  }
 }
 
 /* ---------- LARGE DESKTOP ---------- */
