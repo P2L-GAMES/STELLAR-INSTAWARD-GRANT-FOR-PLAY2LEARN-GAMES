@@ -24,9 +24,11 @@ export interface WalletService {
 /** Freighter extension implementation of WalletService. */
 export class FreighterWallet implements WalletService {
   async isInstalled(): Promise<boolean> {
+    // Freighter injects itself onto window when installed.
+    if ((window as unknown as { freighter?: unknown }).freighter) return true;
     try {
       const result = await isConnected();
-      return result.isConnected !== undefined && result.error === undefined;
+      return result.error === undefined;
     } catch {
       return false;
     }
@@ -41,8 +43,16 @@ export class FreighterWallet implements WalletService {
     }
   }
 
+  private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Wallet connect timed out')), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
   async connect(): Promise<WalletConnection> {
-    const result = await requestAccess();
+    const result = await this.withTimeout(requestAccess(), 10000);
     if (result.error) {
       throw new Error(result.error?.message ?? 'Freighter connection failed');
     }
@@ -54,7 +64,7 @@ export class FreighterWallet implements WalletService {
 
   async getPublicKey(): Promise<string | null> {
     try {
-      const result = await getAddress();
+      const result = await this.withTimeout(getAddress(), 10000);
       if (result.error || !result.address) return null;
       return result.address;
     } catch {

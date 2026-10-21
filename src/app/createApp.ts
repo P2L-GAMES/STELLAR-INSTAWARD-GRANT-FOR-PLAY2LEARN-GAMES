@@ -130,7 +130,13 @@ export function createApp(canvas: HTMLCanvasElement): App {
       ui.toast.show('Wallet disconnected');
       return;
     }
+    const installed = await walletService.isInstalled();
+    if (!installed) {
+      ui.toast.show('Install the Freighter extension to connect your wallet');
+      return;
+    }
     await player.beginConnect();
+    ui.toast.show('Connecting to Freighter…');
     try {
       const { publicKey } = await walletService.connect();
       await player.completeConnect(publicKey);
