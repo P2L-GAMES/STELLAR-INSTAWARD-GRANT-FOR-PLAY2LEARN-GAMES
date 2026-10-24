@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import { QuizMode } from './modes/QuizMode';
 import type { GameMode, GameModeContext } from './GameMode';
 import type { EventBus } from '@/core/EventBus';
+import type { Viewport } from '@/core/Viewport';
 import type { Player } from '@/state/Player';
 import type { AppEvents, GameModeId } from '@/types';
 
@@ -32,6 +33,7 @@ export class GameRegistry {
     modeId: GameModeId,
     layer: HTMLElement,
     scene: THREE.Scene,
+    viewport: Viewport,
   ): Promise<boolean> {
     const factory = this.factories.get(modeId);
     if (!factory) return false;
@@ -40,6 +42,7 @@ export class GameRegistry {
       modeId,
       layer,
       scene,
+      viewport,
       requestExit: () => {
         void this.stop();
       },

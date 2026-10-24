@@ -39,7 +39,7 @@ The project was originally built on **Unity WebGL**. It has since been rebuilt o
 static site that deploys to ordinary shared hosting, and integrates with the Freighter
 wallet natively instead of through a `.jslib` bridge.
 
-**What works today:** a playable lobby and a complete 3-question quiz round — an
+**What works today:** a playable lobby and a complete 8-question quiz round — an
 arena scene with a real mirror floor, floating card cascade, a two-faced question card
 deck, a single total-time countdown, answer locking with correct/incorrect reveal, and
 scoring that persists across reloads.
@@ -49,8 +49,8 @@ scoring that persists across reloads.
 | Engine | Three.js (WebGL), no game engine |
 | Language | TypeScript 5.9, `strict` |
 | Build | Vite 8 |
-| Network | Stellar Testnet *(not yet wired — see Plan)* |
-| Wallet | Freighter *(planned)* |
+| Network | Stellar Testnet |
+| Wallet | Freighter extension + WalletConnect (Freighter Mobile) |
 
 ---
 
@@ -67,7 +67,8 @@ scoring that persists across reloads.
 | Fonts | Orbitron (display), Inter (body) |
 | Module system | ESM (`"type": "module"`) |
 | Path alias | `@/*` → `src/*` |
-| Network | Stellar Testnet *(planned)* |
+| Network | Stellar Testnet |
+| Wallets | `@stellar/freighter-api` (desktop), Stellar Wallets Kit + WalletConnect (mobile) |
 
 ### Architecture
 
@@ -104,7 +105,7 @@ src/
                            quiz/QuizGame.ts, data/questionBank.ts
   ui/                      UIRoot.ts (sole owner of DOM refs), HudView.ts,
                            GameSelectView.ts, PlayButtonView.ts, QuizView.ts,
-                           ToastView.ts, RotateGateView.ts, LoaderView.ts
+                           ToastView.ts, LoaderView.ts
   config/index.ts          All tunables: camera, layout tiers, timing, colours
   types/index.ts           Shared contracts: AppEvents, snapshots, scoring rules
   assets/                  Card artwork used by the build
@@ -135,13 +136,25 @@ public/.htaccess           Copied into dist/ on build; Apache config for hosting
    npm run preview    # serve the production build
    ```
 
-4. **Play.** Press **Connect**, then **PLAY**, and answer the three questions before
+4. **Play.** Press **Connect**, then **PLAY**, and answer the eight questions before
    the round timer runs out.
 
-5. **Stellar testnet setup** (once wallet integration lands) — install the
-   [Freighter browser extension](https://www.freighter.app/), switch it to
-   **Testnet**, and fund the account with test XLM from the
+5. **Wallet setup** — install the [Freighter browser extension](https://www.freighter.app/),
+   switch it to **Testnet**, and fund the account with test XLM from the
    [Stellar Friendbot](https://friendbot.stellar.org/).
+
+   Phones cannot use the extension. Mobile connects through **WalletConnect**
+   (Freighter Mobile, LOBSTR, Scopuly — the desktop list is filtered to wallets
+   that can sign Stellar transactions):
+   1. Create a free project at [dashboard.reown.com](https://dashboard.reown.com).
+   2. Copy `.env.example` to `.env.local` and set
+      `VITE_WALLETCONNECT_PROJECT_ID=<your id>`.
+   3. Serve over **HTTPS** — WalletConnect deep links and WebCrypto do not work
+      on `http://` LAN addresses. Use a tunnel (e.g. `ngrok http 5179` or
+      `cloudflared tunnel --url http://localhost:5179`) or a deployed URL.
+
+   Vite inlines the project ID at build time, so set it in the hosting
+   environment as well before `npm run build`.
 
 ### Commands
 
@@ -176,17 +189,18 @@ box with two faces: the question template on the front and `cover1.png` on the b
 Each prompt is drawn onto a canvas texture at runtime (word-wrapped, auto-shrinking
 font so long questions still fit).
 
-Cards sit in a fixed three-slot cascade and **never change position** — only rotation
-animates. The active card is flipped *open* to show its prompt; every other card is
-flipped *closed* and shows the cover artwork. Only the open card has its prompt
-painted, so a player cannot read questions ahead.
+Cards sit in a carousel whose active card always rotates into the **middle** slot, with
+its neighbours fanned out left and right and the rest waiting off to the sides. Advancing
+flips the finished card *closed* while the next card rotates into the middle and flips
+*open* to show its prompt. Only the open card has its prompt painted, so a player cannot
+read questions ahead.
 
 **Answering does not flip anything.** Selecting an answer only reveals correctness in
 the answer row. **Only `Next` flips cards** — it closes the finished card and flips the
 next one open.
 
 Round rules:
-- The round is **3 questions**
+- The round is **8 questions**
 - `durationSeconds` is the **total round time**, shared across every question — it does
   not reset per question. One countdown with a progress bar, red in the last 10 seconds
 - When time runs out the round ends immediately, every card flips closed, and the
@@ -219,19 +233,21 @@ interface Question {
 yet. Adding one is a data change only.
 
 ### Phase C — Stellar Integration
-Web-native Freighter wallet integration against **Stellar testnet**.
+Web-native wallet integration against **Stellar testnet**.
 
 ```
 src/stellar/
   NetworkConfig.ts        Testnet passphrase, Horizon URL, explorer link builder
   distributor.config.ts   Testnet distributor key, hard mainnet guard
-  WalletService.ts        Interface + Freighter implementation (lazy-imported)
+  WalletService.ts        Freighter extension + lazy WalletConnect router
   StellarClient.ts        Horizon: getBalance(), submitTx()
   PayoutService.ts        Quiz completion → reward payment → tx hash
 ```
 
-Planned dependencies: `@stellar/stellar-sdk` (17.2.1) and `@stellar/freighter-api`
-(6.0.1) — note the `-api` suffix.
+Dependencies: `@stellar/stellar-sdk` (17.2.1), `@stellar/freighter-api` (6.0.1,
+note the `-api` suffix), and `@creit.tech/stellar-wallets-kit` (2.7.1) for the
+WalletConnect path. The kit is dynamically imported so desktop play never pays
+for the mobile dependency graph.
 
 Horizon testnet serves CORS headers, so the browser queries it directly and **no
 backend is required**. Player profiles, scores, and the leaderboard live client-side
@@ -247,7 +263,8 @@ in later without touching game or state code.
   blocks access to source files
 - Production output verified by serving `dist/` as plain static files and playing a
   full round with zero console errors
-- Remaining: confirm HTTPS on the host, which Freighter will need in Phase C
+- Remaining: confirm HTTPS on the host, which Freighter and WalletConnect need
+- Set `VITE_WALLETCONNECT_PROJECT_ID` in the hosting environment before building
 
 ---
 
@@ -295,15 +312,24 @@ up.
 
 ## Responsive Behaviour
 
-The mobile layout **is** the desktop layout. Phones are gated to landscape via a
-"rotate device" overlay, and the CSS only shrinks text and padding — buttons never
-reposition or resize. On short landscape screens the answer row is stacked above
-**Next** so both stay clear of each other.
+Phones play in **either orientation** — there is no rotate gate.
 
-Camera distance is solved on every resize so the card cascade always fills the same
-fraction of the viewport width. Cards therefore keep a constant apparent size instead
-of shrinking on a pulled-back mobile camera. Adjust
-`DECK_FRAMING.targetWidthFraction` in `config/index.ts` to change the overall size.
+**Portrait** uses a dedicated vertical layout rather than shrinking the desktop one:
+the HUD becomes an identity row plus a full-width wallet strip, the lobby cards fan
+into a tight hand, the title/perks/game-select/PLAY stack into a bottom dock, answers
+become full-width touch rows above a full-width **Next**, and results collapse to one
+scrolling column with a pinned footer. The 3D question deck swaps to a portrait
+carousel where the active card sits square-on with its neighbours peeking behind.
+
+**Landscape** keeps the original desktop composition. The CSS only shrinks text and
+padding; on short landscape screens the answer row is stacked above **Next** so both
+stay clear of each other.
+
+Camera distance is solved on every resize so the card cascade keeps a constant
+apparent size instead of shrinking on a pulled-back mobile camera. Landscape frames by
+width (`DECK_FRAMING`); portrait frames the active card by height (46% of the viewport)
+so it leaves room for the answer stack (`DECK_FRAMING_PORTRAIT`). Both live in
+`config/index.ts`.
 
 ---
 

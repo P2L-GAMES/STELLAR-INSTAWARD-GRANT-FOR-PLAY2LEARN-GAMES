@@ -1,4 +1,4 @@
-export type GameModeId = 'quiz';
+export type GameModeId = 'quiz' | 'stellar-games';
 
 /** Question rendering kind. `image` is reserved for a future media question type. */
 export type QuestionType = 'text' | 'image';
@@ -109,8 +109,7 @@ export interface AppEvents extends Record<string, unknown> {
   'player:connection': PlayerConnectionState;
   'player:activity': PlayerActivityState;
   'player:wallet': { address: string | null };
-  'viewport:resized': { width: number; height: number; gated: boolean };
-  'viewport:gated': { gated: boolean };
+  'viewport:resized': { width: number; height: number; portrait: boolean };
   'assets:ready': Record<string, unknown>;
 }
 

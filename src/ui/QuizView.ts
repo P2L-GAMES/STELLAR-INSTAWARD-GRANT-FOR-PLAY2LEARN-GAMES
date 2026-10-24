@@ -247,7 +247,7 @@ const TEMPLATE = `
       </div>
     </div>
     <div class="quiz-timer">
-      <span class="quiz-timer-value">30</span>
+      <span class="quiz-timer-value">80</span>
       <div class="quiz-timer-track"><div class="quiz-timer-fill"></div></div>
     </div>
   </div>

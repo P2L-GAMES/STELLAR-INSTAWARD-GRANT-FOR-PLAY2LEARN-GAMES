@@ -2,6 +2,11 @@
 
 export type UpdateFn = (deltaSeconds: number, elapsedSeconds: number) => void;
 
+/** Frame gaps larger than this are treated as a pause, not a stall. */
+const PAUSE_THRESHOLD_S = 0.5;
+/** Integration step is clamped so a slow frame cannot overshoot easing. */
+const MAX_DELTA_S = 0.1;
+
 export class Loop {
   private readonly updaters = new Set<UpdateFn>();
   private frameId = 0;
@@ -37,9 +42,17 @@ export class Loop {
     if (!this.running) return;
     this.frameId = requestAnimationFrame(this.tick);
 
-    const delta = Math.min((now - this.lastTime) / 1000, 0.1);
+    const rawDelta = (now - this.lastTime) / 1000;
     this.lastTime = now;
-    this.elapsed += delta;
+
+    // After the tab is hidden or the emulator stalls, skip the first frame so
+    // the bobbing/drift resumes from where it stopped instead of snapping.
+    if (rawDelta > PAUSE_THRESHOLD_S) return;
+
+    // Elapsed follows real time so sine-driven motion stays smooth at any
+    // frame rate; the clamped delta keeps per-frame integration stable.
+    this.elapsed += rawDelta;
+    const delta = Math.min(rawDelta, MAX_DELTA_S);
 
     for (const update of [...this.updaters]) update(delta, this.elapsed);
   };

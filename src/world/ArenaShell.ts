@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import {
   ARCADE_FLOOR_SIZE,
-  COLORS,
   MIRROR_CLIP_BIAS,
   MIRROR_COLOR,
   MIRROR_RESOLUTION,
@@ -12,27 +11,8 @@ export class ArenaShell {
   readonly group = new THREE.Group();
 
   constructor() {
-    this.group.add(this.createDome());
     this.group.add(this.createRings());
     this.group.add(this.createHexWall());
-  }
-
-  private createDome(): THREE.Mesh {
-    const geometry = new THREE.SphereGeometry(
-      32,
-      48,
-      24,
-      0,
-      Math.PI * 2,
-      0,
-      Math.PI * 0.55,
-    );
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x070b18,
-      side: THREE.BackSide,
-      fog: false,
-    });
-    return new THREE.Mesh(geometry, material);
   }
 
   private createRings(): THREE.Group {
@@ -40,12 +20,12 @@ export class ArenaShell {
     const teal = new THREE.MeshBasicMaterial({
       color: 0x0e5a66,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.5,
     });
     const purple = new THREE.MeshBasicMaterial({
       color: 0x3b1a5e,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.5,
     });
     const rings: Array<[number, number, THREE.Material]> = [
       [14, 4.5, teal],
@@ -74,7 +54,7 @@ export class ArenaShell {
       new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.2,
         side: THREE.BackSide,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -167,5 +147,3 @@ export class ParticleField {
     );
   }
 }
-
-export const ARENA_BACKGROUND = COLORS.background;

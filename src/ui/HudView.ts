@@ -1,6 +1,6 @@
 ﻿import type { EventBus } from '@/core/EventBus';
 import type { Player } from '@/state/Player';
-import type { AppEvents, Unsubscribe } from '@/types';
+import type { AppEvents, PlayerConnectionState, Unsubscribe } from '@/types';
 
 export interface HudElements {
   readonly playerId: HTMLElement;
@@ -32,12 +32,10 @@ export class HudView {
         elements.xlm.textContent = `XLM ${total}`;
       }),
       events.on('player:connection', (state) => {
-        const connected = state === 'connected';
-        elements.connect.classList.toggle('connected', connected);
-        elements.connect.textContent = connected ? player.walletShort : 'Connect';
+        this.renderConnection(state);
       }),
       events.on('player:wallet', () => {
-        elements.playerId.textContent = player.walletShort;
+        this.renderIdentity();
       }),
     );
 
@@ -58,6 +56,17 @@ export class HudView {
 
   private renderIdentity(): void {
     this.elements.playerId.textContent = this.player.walletShort;
+    this.renderConnection(this.player.connectionState);
+  }
+
+  private renderConnection(state: PlayerConnectionState): void {
+    const connected = state === 'connected';
+    this.elements.connect.classList.toggle('connected', connected);
+    this.elements.connect.textContent = connected
+      ? this.player.walletShort
+      : state === 'connecting'
+        ? 'Connecting…'
+        : 'Connect';
   }
 
   private renderTotals(): void {

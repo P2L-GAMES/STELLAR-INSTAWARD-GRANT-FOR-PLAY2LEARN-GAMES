@@ -1,35 +1,64 @@
 import * as THREE from 'three';
 import { QUESTION_DECK, type DeckSlot } from '@/config';
-import type { Question } from '@/types';
+import type { Viewport } from '@/core/Viewport';
+import type { Question, Unsubscribe } from '@/types';
+
+interface DeckTransform {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly ry: number;
+  readonly scale: number;
+}
 
 interface DeckCard {
   readonly mesh: THREE.Mesh;
   readonly canvas: HTMLCanvasElement;
   readonly texture: THREE.CanvasTexture;
   readonly template: HTMLImageElement;
-  readonly slot: DeckSlot;
+  /** Where the card is travelling to as the carousel advances. */
+  target: DeckTransform;
   /** 0 shows the question face, PI shows the cover face. */
   flipAngle: number;
   flipTarget: number;
   /** Extra rotation that decays, giving the reveal its swing. */
   swing: number;
+  /** Seconds to hold the current transform before easing to the new target. */
+  delay: number;
 }
 
 /**
- * Three question cards held in a fixed cascade. Cards never change position —
- * they only rotate. The active card is flipped open to show its prompt, every
- * other card is flipped closed and shows the cover artwork.
+ * Question cards held in a carousel. The active card always travels to the
+ * middle slot while its neighbours fan out left and right; advancing flips the
+ * finished card closed and rotates the next one into the middle, where it flips
+ * open to show its prompt.
  */
 export class QuestionDeck {
   readonly group = new THREE.Group();
 
   private readonly cards: DeckCard[] = [];
+  private readonly positionEase = QUESTION_DECK.positionEase;
   private readonly rotationEase = QUESTION_DECK.rotationEase;
   private readonly scaleEase = QUESTION_DECK.scaleEase;
   private readonly flipEase = QUESTION_DECK.flipEase;
+  private readonly offViewport: Unsubscribe;
+  private activeIndex = 0;
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    private readonly viewport: Viewport,
+  ) {
     this.scene.add(this.group);
+    // Slot geometry differs between portrait and landscape, so recompute the
+    // carousel targets when the device rotates.
+    this.offViewport = this.viewport.onChange(() => this.relayout());
+  }
+
+  /** Recompute slot targets for the current orientation. */
+  relayout(): void {
+    this.cards.forEach((card, index) => {
+      card.target = this.transformFor(index, this.activeIndex);
+    });
   }
 
   get isReady(): boolean {
@@ -61,7 +90,7 @@ export class QuestionDeck {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 8;
 
-      const slot = QUESTION_DECK.slots[index] ?? QUESTION_DECK.fallbackSlot;
+      const target = this.transformFor(index, 0);
 
       const faceMaterial = new THREE.MeshBasicMaterial({
         map: texture,
@@ -81,10 +110,10 @@ export class QuestionDeck {
         [edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial, faceMaterial, backMaterial],
       );
 
-      // Fixed for the card's whole lifetime — it never moves.
-      mesh.position.set(slot.x, slot.y, slot.z);
-      mesh.rotation.y = slot.ry + Math.PI;
-      mesh.scale.setScalar(slot.scale);
+      mesh.position.set(target.x, target.y, target.z);
+      mesh.rotation.y = target.ry + Math.PI;
+      mesh.scale.setScalar(target.scale);
+      mesh.visible = target.scale > QUESTION_DECK.hiddenScale;
       mesh.renderOrder = 30 - index;
 
       this.cards.push({
@@ -92,10 +121,11 @@ export class QuestionDeck {
         canvas,
         texture,
         template,
-        slot,
+        target,
         flipAngle: Math.PI,
         flipTarget: Math.PI,
         swing: 0,
+        delay: 0,
       });
       this.group.add(mesh);
       this.paint(this.cards[this.cards.length - 1]!, null);
@@ -103,14 +133,20 @@ export class QuestionDeck {
   }
 
   /**
-   * Opens the card holding the given question and closes every other card.
-   * Called when a new question is presented, which is what makes cards flip.
+   * Rotates the carousel so the given question sits in the middle slot and
+   * flips it open. Every other card closes and fans out to its side.
    */
   setActive(questionIndex: number, question: Question | null): void {
+    const previousActive = this.activeIndex;
+    this.activeIndex = questionIndex;
     this.cards.forEach((card, index) => {
       const isActive = index === questionIndex && question !== null;
+      const offset = index - questionIndex;
+      card.target = this.transformFor(index, questionIndex);
       card.flipTarget = isActive ? 0 : Math.PI;
       card.swing = isActive ? QUESTION_DECK.revealSwing : 0;
+      card.mesh.renderOrder = isActive ? 40 : 30 - Math.abs(offset);
+      card.delay = this.transitionDelay(index, previousActive, questionIndex);
       this.paint(card, isActive ? question : null);
     });
   }
@@ -128,22 +164,92 @@ export class QuestionDeck {
     const bob = Math.sin(elapsed * 0.9) * 0.035;
 
     for (const card of this.cards) {
-      // Only the card's own idle bob moves it; position never re-targets.
-      card.mesh.position.y = card.slot.y + bob;
+      // Hold the card still while its delay runs so the previous card can
+      // vacate the slot before this one travels into it.
+      if (card.delay > 0) {
+        card.delay = Math.max(0, card.delay - delta);
+        continue;
+      }
 
-      card.flipAngle += (card.flipTarget - card.flipAngle) * this.flipEase;
+      const { target } = card;
+
+      card.flipAngle = damp(card.flipAngle, card.flipTarget, this.flipEase, delta);
       card.swing = Math.max(0, card.swing - QUESTION_DECK.swingDecay * delta * 60);
 
-      const rotation = card.slot.ry + card.flipAngle + card.swing;
-      card.mesh.rotation.y += (rotation - card.mesh.rotation.y) * this.rotationEase;
+      // A turning card lifts toward the camera so its sweep clears the cards
+      // beside it instead of passing through them.
+      const zBoost = Math.sin(card.flipAngle) * QUESTION_DECK.flipZBoost;
 
-      const targetScale = card.slot.scale * (1 + card.swing * 0.04);
+      // Ease factors are authored per frame at 60fps; scale them by delta so
+      // the motion is identical at 30fps or 120fps instead of stuttering.
+      card.mesh.position.x = damp(card.mesh.position.x, target.x, this.positionEase, delta);
+      card.mesh.position.y = damp(card.mesh.position.y, target.y + bob, this.positionEase, delta);
+      card.mesh.position.z = damp(
+        card.mesh.position.z,
+        target.z + zBoost,
+        this.positionEase,
+        delta,
+      );
+
+      const rotation = target.ry + card.flipAngle + card.swing;
+      card.mesh.rotation.y = damp(card.mesh.rotation.y, rotation, this.rotationEase, delta);
+
+      const targetScale = target.scale * (1 + card.swing * 0.04);
       const current = card.mesh.scale.x || 1;
-      card.mesh.scale.setScalar(current + (targetScale - current) * this.scaleEase);
+      const nextScale = damp(current, targetScale, this.scaleEase, delta);
+      card.mesh.scale.setScalar(nextScale);
+      card.mesh.visible = nextScale > QUESTION_DECK.hiddenScale || target.scale > QUESTION_DECK.hiddenScale;
     }
   }
 
+  /**
+   * Maps a card to a slot relative to the active index: the active card takes
+   * the middle slot, its immediate neighbours the left and right slots, and any
+   * card further away waits off to its side at a negligible scale.
+   */
+  private transformFor(index: number, active: number): DeckTransform {
+    const slots = this.slots;
+    const offset = index - active;
+    const slot =
+      offset === 0
+        ? slots[1] ?? QUESTION_DECK.fallbackSlot
+        : offset < 0
+          ? slots[0] ?? QUESTION_DECK.fallbackSlot
+          : slots[2] ?? QUESTION_DECK.fallbackSlot;
+    const scale = Math.abs(offset) > 1 ? slot.scale * QUESTION_DECK.hiddenScale : slot.scale;
+    return { x: slot.x, y: slot.y, z: slot.z, ry: slot.ry, scale };
+  }
+
+  /**
+   * Staggers the carousel so a slot is vacated before the next card arrives.
+   * Cards that are leaving shrink away first, the outgoing active card moves
+   * to its side slot next, the incoming active card takes the middle last, and
+   * a freshly revealed side card appears only once its slot is free. Without
+   * this the outgoing and incoming cards travel through each other.
+   */
+  private transitionDelay(
+    index: number,
+    previousActive: number,
+    nextActive: number,
+  ): number {
+    const nextOffset = index - nextActive;
+    const wasVisible = Math.abs(index - previousActive) <= 1;
+    const isVisible = Math.abs(nextOffset) <= 1;
+
+    if (nextOffset === 0) return QUESTION_DECK.enterActiveDelay;
+    if (!isVisible) return wasVisible ? QUESTION_DECK.exitDelay : 0;
+    if (index === previousActive) return QUESTION_DECK.exitActiveDelay;
+    return wasVisible ? 0 : QUESTION_DECK.enterSideDelay;
+  }
+
+  private get slots(): readonly DeckSlot[] {
+    return this.viewport.getState().portrait
+      ? QUESTION_DECK.portraitSlots
+      : QUESTION_DECK.slots;
+  }
+
   dispose(): void {
+    this.offViewport();
     this.clear();
     this.scene.remove(this.group);
   }
@@ -195,6 +301,15 @@ export class QuestionDeck {
       this.group.remove(card.mesh);
     }
   }
+}
+
+/**
+ * Framerate-independent exponential smoothing. `easePerFrame` is the fraction
+ * covered each frame at 60fps; the exponent rescales it to the actual step.
+ */
+function damp(current: number, target: number, easePerFrame: number, delta: number): number {
+  const t = 1 - Math.pow(1 - easePerFrame, delta * 60);
+  return current + (target - current) * t;
 }
 
 function wrapText(

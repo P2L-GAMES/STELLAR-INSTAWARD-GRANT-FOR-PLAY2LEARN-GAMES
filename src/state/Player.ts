@@ -75,8 +75,24 @@ export class Player {
     this.displayName = snapshot.displayName;
     this.rank = snapshot.rank;
     this.walletAddress = snapshot.walletAddress;
-    this.scoring.restore(snapshot.points, snapshot.xlm);
+    if (this.walletAddress) {
+      this.connection.restore('connected');
+      this.events.emit('player:connection', this.connection.state);
+    }
     this.events.emit('player:wallet', { address: this.walletAddress });
+    this.scoring.restore(snapshot.points, snapshot.xlm);
+  }
+
+  /** Adopt a wallet session restored by the wallet layer (e.g. WalletConnect). */
+  async restoreConnection(walletAddress: string): Promise<void> {
+    if (this.connection.state === 'connected' && this.walletAddress === walletAddress) {
+      return;
+    }
+    this.connection.restore('connected');
+    this.walletAddress = walletAddress;
+    this.events.emit('player:connection', this.connection.state);
+    this.events.emit('player:wallet', { address: this.walletAddress });
+    await this.persist();
   }
 
   async beginConnect(): Promise<void> {
@@ -94,7 +110,10 @@ export class Player {
 
   async disconnect(): Promise<void> {
     if (!this.connection.transitionTo('disconnected')) return;
+    this.walletAddress = null;
     this.events.emit('player:connection', this.connection.state);
+    this.events.emit('player:wallet', { address: null });
+    await this.persist();
   }
 
   async cancelConnect(): Promise<void> {

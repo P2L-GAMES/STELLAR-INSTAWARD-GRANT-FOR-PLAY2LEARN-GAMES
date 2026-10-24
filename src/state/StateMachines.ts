@@ -30,6 +30,11 @@ export class ConnectionMachine {
     this.current = next;
     return true;
   }
+
+  /** Rehydrate a persisted state without replaying the transition graph. */
+  restore(next: ConnectionState): void {
+    this.current = next;
+  }
 }
 
 export class ActivityMachine {

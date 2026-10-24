@@ -21,19 +21,33 @@ export class QuizGame {
   /** Total round time remaining, not per question. */
   private remaining = 0;
   private readonly results: AnswerResult[] = [];
+  /** Questions in a fresh random order for this round. */
+  private readonly order: readonly Question[];
+  /**
+   * The round is only live after {@link start}. The mode is constructed while
+   * the deck loads, and the render loop can tick before the round begins, so
+   * without this guard an unstarted game would immediately run out of time and
+   * show the results screen.
+   */
+  private started = false;
 
   constructor(
     private readonly definition: GameDefinition,
     private readonly events: EventBus<AppEvents>,
     private readonly hooks: QuizGameHooks,
-  ) {}
+  ) {
+    // Show a full clock while the deck loads; the round clock only starts on
+    // {@link start}.
+    this.remaining = definition.durationSeconds;
+    this.order = shuffle(definition.questions);
+  }
 
   get questions(): readonly Question[] {
-    return this.definition.questions;
+    return this.order;
   }
 
   get currentQuestion(): Question | null {
-    return this.definition.questions[this.index] ?? null;
+    return this.order[this.index] ?? null;
   }
 
   get currentIndex(): number {
@@ -41,7 +55,7 @@ export class QuizGame {
   }
 
   get total(): number {
-    return this.definition.questions.length;
+    return this.order.length;
   }
 
   get currentPhase(): QuizPhase {
@@ -76,6 +90,7 @@ export class QuizGame {
   }
 
   start(): void {
+    this.started = true;
     this.index = 0;
     this.phase = 'question';
     this.results.length = 0;
@@ -85,7 +100,7 @@ export class QuizGame {
 
   /** Locks in an answer. Ignored once the question is revealed or the round ended. */
   selectAnswer(answerId: string): void {
-    if (this.phase !== 'question') return;
+    if (!this.started || this.phase !== 'question') return;
     const question = this.currentQuestion;
     if (!question) return;
     if (!question.answers.some((answer) => answer.id === answerId)) return;
@@ -96,7 +111,7 @@ export class QuizGame {
 
   /** Advance to the next question, or end the round. */
   advance(): void {
-    if (this.phase === 'finished') return;
+    if (!this.started || this.phase === 'finished') return;
     if (this.phase === 'question') {
       // Advancing without answering counts as passed.
       const question = this.currentQuestion;
@@ -113,7 +128,7 @@ export class QuizGame {
 
   /** Counts the total round clock down. Running out ends the round. */
   update(delta: number): void {
-    if (this.phase === 'finished') return;
+    if (!this.started || this.phase === 'finished') return;
     this.remaining -= delta;
     if (this.remaining > 0) return;
     this.remaining = 0;
@@ -122,6 +137,7 @@ export class QuizGame {
   }
 
   dispose(): void {
+    this.started = false;
     this.results.length = 0;
   }
 
@@ -173,7 +189,7 @@ export class QuizGame {
    */
   private recordUnanswered(): void {
     const seen = new Set(this.results.map((result) => result.questionId));
-    for (const question of this.definition.questions) {
+    for (const question of this.order) {
       if (seen.has(question.id)) continue;
       this.results.push({
         questionId: question.id,
@@ -194,4 +210,17 @@ export class QuizGame {
       remainingSeconds: this.remainingSeconds,
     });
   }
+}
+
+/** Fisher–Yates shuffle into a new array, leaving the source untouched. */
+function shuffle<T>(items: readonly T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = result[i]!;
+    const b = result[j]!;
+    result[i] = b;
+    result[j] = a;
+  }
+  return result;
 }

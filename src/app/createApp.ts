@@ -1,13 +1,22 @@
 import * as THREE from 'three';
 import coverTextureUrl from '@/assets/cover1.png';
-import { CAMERA_DRIFT, DECK_BOUNDS, DECK_FRAMING, LOADER_FALLBACK_MS } from '@/config';
+import {
+  CAMERA_DRIFT,
+  DECK_BOUNDS,
+  DECK_BOUNDS_PORTRAIT,
+  DECK_FRAMING,
+  DECK_FRAMING_PORTRAIT,
+  LOADER_FALLBACK_MS,
+  MIRROR_RESOLUTION,
+  MIRROR_RESOLUTION_MOBILE,
+} from '@/config';
 import { AssetLoader } from '@/core/AssetLoader';
 import { Engine } from '@/core/Engine';
 import { EventBus } from '@/core/EventBus';
 import { Loop } from '@/core/Loop';
-import { Viewport } from '@/core/Viewport';
+import { Viewport, type ViewportState } from '@/core/Viewport';
 import { CardTrio } from '@/entities/CardTrio';
-import { FreighterWallet, PayoutService, StellarClient } from '@/stellar';
+import { isMobileDevice, PayoutService, StellarClient, WalletRouter } from '@/stellar';
 import { GameRegistry } from '@/game/GameRegistry';
 import { LocalSessionStore, Leaderboard, Player, ScoringSystem } from '@/state';
 import { UIRoot } from '@/ui';
@@ -15,6 +24,10 @@ import { Arena } from '@/world/Arena';
 import type { AppEvents, GameModeId, Unsubscribe } from '@/types';
 
 const HINT_TEXT = 'Select a game, then press PLAY to begin';
+const WC_PENDING_KEY = 'p2l:wc-pending';
+const WC_PENDING_TTL_MS = 10 * 60 * 1000;
+const WC_SETTLE_WAIT_MS = 10_000;
+const CONNECT_RESTORE_WINDOW_MS = 2 * 60 * 1000;
 
 export interface App {
   readonly engine: Engine;
@@ -32,7 +45,8 @@ export interface App {
 export function createApp(canvas: HTMLCanvasElement): App {
   const events = new EventBus<AppEvents>();
   const viewport = new Viewport();
-  const engine = new Engine(canvas, viewport.getTargetPixelRatio());
+  // MSAA is expensive on mobile GPUs and software-rendered emulators.
+  const engine = new Engine(canvas, viewport.getTargetPixelRatio(), !isMobileDevice());
   const assets = new AssetLoader(engine.maxAnisotropy);
   const loop = new Loop();
   const arena = new Arena().build();
@@ -41,23 +55,40 @@ export function createApp(canvas: HTMLCanvasElement): App {
   engine.scene.add(arena.shell.group);
   engine.scene.add(arena.floor.group);
   engine.scene.add(arena.particles.points);
-  engine.applyViewport(viewport.getState(), viewport.getTargetPixelRatio());
   // Solve camera distance from the card cascade so cards keep the same
-  // apparent size on a phone as on a desktop.
-  engine.frameSubjectToViewport(DECK_BOUNDS, DECK_FRAMING.targetWidthFraction, {
-    minDistance: DECK_FRAMING.minDistance,
-    maxDistance: DECK_FRAMING.maxDistance,
-  });
+  // apparent size on a phone as on a desktop, and fit the answer stack in
+  // portrait.
+  const frameDeck = (): void => {
+    const portrait = viewport.isPortrait;
+    engine.frameSubject(
+      portrait ? DECK_BOUNDS_PORTRAIT : DECK_BOUNDS,
+      portrait ? DECK_FRAMING_PORTRAIT : DECK_FRAMING,
+    );
+  };
+  // The mirror is a full second scene render each frame; shrink its target on
+  // phones/emulators to keep the reflection cheap.
+  const applyMirrorResolution = (state: ViewportState): void => {
+    const mobile = state.portrait || state.tier === 'phone' || state.tier === 'tiny';
+    arena.floor.setResolution(mobile ? MIRROR_RESOLUTION_MOBILE : MIRROR_RESOLUTION);
+  };
+
+  engine.applyViewport(viewport.getState(), viewport.getTargetPixelRatio());
+  frameDeck();
+  applyMirrorResolution(viewport.getState());
 
   // ---- state ----
   const store = new LocalSessionStore();
   const scoring = new ScoringSystem(events);
   const player = new Player(generateLocalId(), scoring, store, events);
   const leaderboard = new Leaderboard(store);
-  void player.hydrate();
 
   // ---- Stellar (Phase C) ----
-  const walletService = new FreighterWallet();
+  const walletService = new WalletRouter({
+    walletConnectProjectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
+    appName: 'Stellar Play2Learn',
+    appUrl: window.location.origin,
+    appIcon: new URL(coverTextureUrl, window.location.origin).href,
+  });
   const stellarClient = new StellarClient();
   const payoutService = new PayoutService(stellarClient);
 
@@ -68,8 +99,6 @@ export function createApp(canvas: HTMLCanvasElement): App {
   cards.mount();
 
   // ---- ui ----
-  const isBlocked = (): boolean => viewport.isGated;
-
   const ui = new UIRoot(events, player, {
     hud: {
       onConnect: () => void handleConnect(),
@@ -83,7 +112,7 @@ export function createApp(canvas: HTMLCanvasElement): App {
   ui.loader.scheduleFallback(LOADER_FALLBACK_MS);
   ui.setHint(HINT_TEXT);
   ui.modeSelect.setActive('quiz');
-  void player.enterLobby();
+  void bootPlayer();
 
   events.on('card:ready', () => ui.loader.dismiss());
   let inGameScene = false;
@@ -99,8 +128,153 @@ export function createApp(canvas: HTMLCanvasElement): App {
     ui.gameLayer.innerHTML = '';
   });
 
+  let connectAttempted = false;
+  let connectAttemptTimer: ReturnType<typeof setTimeout> | null = null;
+  let restoreInFlight = false;
+  let resumingWallet = false;
+  let dismissTimers: ReturnType<typeof setTimeout>[] = [];
+  let returnRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let returnRetryCount = 0;
+
+  const RETURN_RETRY_MS = 4000;
+  const RETURN_RETRY_MAX = 15;
+
+  function clearReturnRetries(): void {
+    if (returnRetryTimer) {
+      clearTimeout(returnRetryTimer);
+      returnRetryTimer = null;
+    }
+    returnRetryCount = 0;
+  }
+
+  function scheduleReturnRetry(): void {
+    if (returnRetryTimer || player.connectionState === 'connected') return;
+    returnRetryTimer = setTimeout(() => {
+      returnRetryTimer = null;
+      void retryReturn();
+    }, RETURN_RETRY_MS);
+  }
+
+  async function retryReturn(): Promise<void> {
+    if (!isMobileDevice()) return;
+    if (!hasWalletConnectPending() && !connectAttempted) return;
+    if (returnRetryCount >= RETURN_RETRY_MAX) return;
+    returnRetryCount += 1;
+    await handleReturn();
+    if (player.connectionState !== 'connected') scheduleReturnRetry();
+  }
+
+  function clearDismissTimers(): void {
+    for (const timer of dismissTimers) clearTimeout(timer);
+    dismissTimers = [];
+  }
+
+  function scheduleDismiss(): void {
+    clearDismissTimers();
+    dismissTimers = [400, 1600, 4000].map((delay) =>
+      setTimeout(() => {
+        void walletService.dismiss();
+      }, delay),
+    );
+  }
+
+  function markConnectAttempted(): void {
+    connectAttempted = true;
+    if (connectAttemptTimer) clearTimeout(connectAttemptTimer);
+    connectAttemptTimer = setTimeout(() => {
+      connectAttempted = false;
+      connectAttemptTimer = null;
+    }, CONNECT_RESTORE_WINDOW_MS);
+  }
+
+  function clearConnectAttempted(): void {
+    connectAttempted = false;
+    if (connectAttemptTimer) {
+      clearTimeout(connectAttemptTimer);
+      connectAttemptTimer = null;
+    }
+  }
+
+  async function bootPlayer(): Promise<void> {
+    await player.hydrate();
+    player.enterLobby();
+    // A mobile redirect back from the wallet app may beat the relay's session
+    // settlement. Only touch WalletConnect when a connect attempt was in
+    // flight, so ordinary mobile loads stay on the lightweight path.
+    if (!isMobileDevice() || !hasWalletConnectPending()) return;
+    if (restoreInFlight) return;
+    restoreInFlight = true;
+    try {
+      const restored = await walletService.restore(WC_SETTLE_WAIT_MS);
+      if (restored) {
+        clearWalletConnectPending();
+        clearReturnRetries();
+        await player.restoreConnection(restored);
+      } else {
+        // Keep the pending flag so the retry loop can still recover the
+        // session; a later focus event is another chance to settle it.
+        scheduleReturnRetry();
+      }
+    } finally {
+      restoreInFlight = false;
+    }
+  }
+
+  async function handleReturn(): Promise<void> {
+    if (restoreInFlight) return;
+    if (player.connectionState === 'connected') return;
+    if (!connectAttempted && !hasWalletConnectPending()) return;
+    restoreInFlight = true;
+    resumingWallet = true;
+    try {
+      // Returning from the wallet app can leave the WalletConnect modal on
+      // screen and the relay socket dead. Clear the overlay and reconnect
+      // before polling for the settled session.
+      await walletService.resume();
+      const address = await walletService.restore(WC_SETTLE_WAIT_MS);
+      if (!address) {
+        // Android can drop the relay socket while the wallet app is open and
+        // take longer than one settle window to deliver the session. Retry.
+        scheduleReturnRetry();
+        return;
+      }
+      clearConnectAttempted();
+      clearWalletConnectPending();
+      clearReturnRetries();
+      try {
+        engine.applyViewport(viewport.getState(), viewport.getTargetPixelRatio());
+        frameDeck();
+        cards.relayout();
+        engine.render();
+      } catch {
+        // The GL context may still be rebuilding; the render loop recovers.
+      }
+      await player.restoreConnection(address);
+      scheduleDismiss();
+      ui.toast.show(`Wallet connected: ${player.walletShort}`);
+    } finally {
+      resumingWallet = false;
+      restoreInFlight = false;
+    }
+  }
+
+  const onReturn = (): void => {
+    if (document.visibilityState === 'visible') void handleReturn();
+  };
+  const onVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') {
+      // The wallet app is in the foreground. Start a background retry so the
+      // session is picked up once the browser tab is resumed.
+      if (hasWalletConnectPending() || connectAttempted) scheduleReturnRetry();
+      return;
+    }
+    void handleReturn();
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pageshow', onReturn);
+  window.addEventListener('focus', onReturn);
+
   async function handlePayout(): Promise<void> {
-    if (isBlocked()) return;
     if (player.connectionState !== 'connected' || !player.wallet) {
       ui.toast.show('Connect your wallet to cash out');
       return;
@@ -128,27 +302,60 @@ export function createApp(canvas: HTMLCanvasElement): App {
   }
 
   async function handleConnect(): Promise<void> {
-    if (isBlocked()) return;
+    clearDismissTimers();
+    clearReturnRetries();
     if (player.connectionState === 'connected') {
+      clearConnectAttempted();
+      clearWalletConnectPending();
+      clearReturnRetries();
       await player.disconnect();
       ui.toast.show('Wallet disconnected');
+      // The session close can take a while on a cold WalletConnect client;
+      // local state is already cleared, so let it finish in the background.
+      void walletService.disconnect().catch(() => {
+        // A stale remote session is harmless once the app has forgotten it.
+      });
       return;
     }
-    const installed = await walletService.isInstalled();
-    if (!installed) {
-      ui.toast.show('Install the Freighter extension to connect your wallet');
+    if (player.connectionState === 'connecting') return;
+    const available = await walletService.isAvailable();
+    if (!available) {
+      ui.toast.show(
+        isMobileDevice()
+          ? 'Mobile wallets need WalletConnect — set VITE_WALLETCONNECT_PROJECT_ID'
+          : 'Install the Freighter extension to connect your wallet',
+      );
       return;
     }
     await player.beginConnect();
-    ui.toast.show('Connecting to Freighter…');
+    ui.toast.show('Opening wallet.');
+    markConnectAttempted();
+    if (isMobileDevice()) markWalletConnectPending();
     try {
       const { publicKey } = await walletService.connect();
+      clearConnectAttempted();
+      clearWalletConnectPending();
       await player.completeConnect(publicKey);
+      await walletService.dismiss();
       ui.toast.show(`Wallet connected: ${player.walletShort}`);
     } catch (error) {
+      // Keep the connect attempt alive on mobile so the retry loop can still
+      // settle a session that was approved while the tab was backgrounded.
+      if (!resumingWallet && document.visibilityState === 'visible') {
+        clearWalletConnectPending();
+      }
+      if (player.wallet) {
+        clearConnectAttempted();
+        clearReturnRetries();
+        scheduleDismiss();
+        ui.toast.show(`Wallet connected: ${player.walletShort}`);
+        return;
+      }
       await player.cancelConnect();
       ui.toast.show(
-        `Wallet connect failed: ${(error as Error)?.message ?? String(error)}`,
+        resumingWallet
+          ? 'Finishing wallet connection…'
+          : `Wallet connect failed: ${(error as Error)?.message ?? String(error)}`,
       );
     }
   }
@@ -159,27 +366,33 @@ export function createApp(canvas: HTMLCanvasElement): App {
   }
 
   async function startMode(modeId: GameModeId): Promise<void> {
-    if (isBlocked()) {
-      ui.toast.show('Rotate to landscape to play');
-      return;
-    }
     if (!player.canEarn) {
       ui.toast.show('Connect your wallet to play');
       return;
     }
-    await registry.start(modeId, ui.gameLayer, engine.scene);
+    // Disable immediately: the deck loads asynchronously, and a second tap
+    // during that window would start a second mode.
+    ui.play.setEnabled(false);
+    try {
+      await registry.start(modeId, ui.gameLayer, engine.scene, viewport);
+    } catch {
+      ui.play.setEnabled(true);
+    }
   }
 
   // ---- viewport ----
   const offViewport: Unsubscribe = viewport.onChange((state) => {
     engine.applyViewport(state, viewport.getTargetPixelRatio());
+    frameDeck();
+    applyMirrorResolution(state);
     cards.relayout();
-    ui.gate.set(state.gated);
     ui.setHint(HINT_TEXT);
-    events.emit('viewport:resized', { width: state.width, height: state.height, gated: state.gated });
+    events.emit('viewport:resized', {
+      width: state.width,
+      height: state.height,
+      portrait: state.portrait,
+    });
   });
-
-  ui.gate.set(viewport.isGated);
 
   // ---- loop ----
   loop.add((_delta, elapsed) => {
@@ -204,6 +417,16 @@ export function createApp(canvas: HTMLCanvasElement): App {
     start: () => loop.start(),
     dispose() {
       offViewport();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onReturn);
+      window.removeEventListener('focus', onReturn);
+      if (connectAttemptTimer) {
+        clearTimeout(connectAttemptTimer);
+        connectAttemptTimer = null;
+      }
+      for (const timer of dismissTimers) clearTimeout(timer);
+      dismissTimers = [];
+      clearReturnRetries();
       void registry.stop();
       loop.dispose();
       cards.dispose();
@@ -223,6 +446,35 @@ function generateLocalId(): string {
   const id = Math.random().toString(36).slice(2, 10);
   window.localStorage.setItem('p2l:localId', id);
   return id;
+}
+
+function markWalletConnectPending(): void {
+  try {
+    window.localStorage.setItem(WC_PENDING_KEY, String(Date.now()));
+  } catch {
+    // Private mode or blocked storage; the connect flow still works.
+  }
+}
+
+function clearWalletConnectPending(): void {
+  try {
+    window.localStorage.removeItem(WC_PENDING_KEY);
+  } catch {
+    // Nothing to clean up when storage is unavailable.
+  }
+}
+
+function hasWalletConnectPending(): boolean {
+  try {
+    const raw = window.localStorage.getItem(WC_PENDING_KEY);
+    if (!raw) return false;
+    const startedAt = Number(raw);
+    return (
+      Number.isFinite(startedAt) && Date.now() - startedAt < WC_PENDING_TTL_MS
+    );
+  } catch {
+    return false;
+  }
 }
 
 function applyCameraDrift(camera: THREE.PerspectiveCamera, elapsed: number): void {

@@ -10,11 +10,16 @@ export class GameSelectView {
     container: HTMLElement,
     events: EventBus<AppEvents>,
     private readonly onSelect: (modeId: GameModeId) => void,
+    private readonly onComingSoon?: () => void,
   ) {
     for (const element of Array.from(container.querySelectorAll<HTMLButtonElement>('.game-btn'))) {
       const modeId = element.dataset.game as GameModeId | undefined;
       if (!modeId) continue;
       this.buttons.push(element);
+      if (element.hasAttribute('data-coming-soon')) {
+        element.addEventListener('click', this.handleComingSoon);
+        continue;
+      }
       element.addEventListener('click', this.createHandler(modeId));
     }
     this.subscriptions.push(
@@ -36,6 +41,10 @@ export class GameSelectView {
   dispose(): void {
     for (const unsubscribe of this.subscriptions.splice(0)) unsubscribe();
   }
+
+  private readonly handleComingSoon = (): void => {
+    this.onComingSoon?.();
+  };
 
   private createHandler(modeId: GameModeId): () => void {
     return () => {

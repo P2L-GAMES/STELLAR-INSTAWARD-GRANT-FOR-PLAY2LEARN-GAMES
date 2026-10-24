@@ -2,7 +2,6 @@
 import { HudView, type HudHandlers } from './HudView';
 import { LoaderView } from './LoaderView';
 import { PlayButtonView } from './PlayButtonView';
-import { RotateGateView } from './RotateGateView';
 import { ToastView } from './ToastView';
 import type { EventBus } from '@/core/EventBus';
 import type { Player } from '@/state/Player';
@@ -24,7 +23,6 @@ export interface UIRootCallbacks {
 export class UIRoot {
   readonly toast: ToastView;
   readonly loader: LoaderView;
-  readonly gate: RotateGateView;
   readonly gameLayer: HTMLElement;
   readonly hud: HudView;
   readonly modeSelect: GameSelectView;
@@ -41,7 +39,6 @@ export class UIRoot {
     this.title = requireElement('gameTitle');
     this.toast = new ToastView(requireElement('toast'));
     this.loader = new LoaderView(requireElement('loader'));
-    this.gate = new RotateGateView(requireElement('rotateGate'), document.body);
 
     this.gameLayer = document.createElement('div');
     this.gameLayer.id = 'game-layer';
@@ -64,6 +61,7 @@ export class UIRoot {
       requireElement('gameSelect'),
       events,
       callbacks.onModeSelect,
+      () => this.toast.show('Coming soon'),
     );
 
     this.play = new PlayButtonView(
@@ -77,7 +75,6 @@ export class UIRoot {
       () => this.play.dispose(),
       () => this.toast.dispose(),
       () => this.loader.dispose(),
-      () => this.gate.dispose(),
     );
   }
 

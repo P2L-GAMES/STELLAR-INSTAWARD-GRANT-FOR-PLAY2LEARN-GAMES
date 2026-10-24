@@ -123,7 +123,7 @@ export class CardTrio {
         new THREE.PlaneGeometry(spec.w, spec.h),
         material,
       );
-      card.position.set(spec.x, spec.y, CARD_Z);
+      card.position.set(spec.x, spec.y, spec.z);
       card.rotation.y = spec.ry;
       this.baseY[this.cards.length] = spec.y;
 
@@ -135,35 +135,45 @@ export class CardTrio {
   private computeLayout(): Array<{
     x: number;
     y: number;
+    z: number;
     w: number;
     h: number;
     ry: number;
   }> {
-    const tier: CardLayoutTier = CARD_TIERS[this.deps.viewport.getState().tier];
-    const shortLandscape = this.deps.viewport.getState().shortLandscape;
+    const state = this.deps.viewport.getState();
+    const tier: CardLayoutTier = state.portrait
+      ? CARD_TIERS.portrait
+      : CARD_TIERS[state.tier];
 
     let ySide = tier.ySide;
     let yMid = tier.yMid;
-    if (shortLandscape) {
+    if (state.shortLandscape) {
       ySide -= 0.25;
       yMid -= 0.25;
     }
+
+    // Portrait fans the trio into a tight hand: the centre card stands proud
+    // while its neighbours tuck behind, angled toward the player.
+    const sideZ = state.portrait ? CARD_Z - 0.35 : CARD_Z;
+    const sideTilt = state.portrait ? 0.34 : SIDE_TILT;
 
     return [
       {
         x: -tier.spread,
         y: ySide,
+        z: sideZ,
         w: tier.sideW,
         h: tier.sideW / this.aspect,
-        ry: SIDE_TILT,
+        ry: sideTilt,
       },
-      { x: 0, y: yMid, w: tier.midW, h: tier.midW / this.aspect, ry: 0 },
+      { x: 0, y: yMid, z: CARD_Z, w: tier.midW, h: tier.midW / this.aspect, ry: 0 },
       {
         x: tier.spread,
         y: ySide,
+        z: sideZ,
         w: tier.sideW,
         h: tier.sideW / this.aspect,
-        ry: -SIDE_TILT,
+        ry: -sideTilt,
       },
     ];
   }

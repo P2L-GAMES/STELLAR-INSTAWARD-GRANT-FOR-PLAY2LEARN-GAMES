@@ -11,7 +11,8 @@ export interface ViewportState {
   readonly width: number;
   readonly height: number;
   readonly aspect: number;
-  readonly gated: boolean;
+  /** Portrait phone/tablet: uses the vertical layout and camera framing. */
+  readonly portrait: boolean;
   readonly shortLandscape: boolean;
   readonly tier: ViewportTier;
 }
@@ -34,8 +35,8 @@ export class Viewport {
     return this.state;
   }
 
-  get isGated(): boolean {
-    return this.state.gated;
+  get isPortrait(): boolean {
+    return this.state.portrait;
   }
 
   getTargetPixelRatio(): number {
@@ -72,7 +73,7 @@ export class Viewport {
     const changed =
       next.width !== this.state.width ||
       next.height !== this.state.height ||
-      next.gated !== this.state.gated ||
+      next.portrait !== this.state.portrait ||
       next.tier !== this.state.tier;
     if (!changed) return;
     this.state = next;
@@ -87,7 +88,7 @@ export class Viewport {
       width,
       height,
       aspect,
-      gated: height > width && width <= BREAKPOINTS.phone,
+      portrait: height > width,
       shortLandscape: height < BREAKPOINTS.shortLandscapeHeight && width > height,
       tier: resolveTier(width, aspect),
     };

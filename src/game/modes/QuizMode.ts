@@ -34,7 +34,7 @@ export class QuizMode implements GameMode {
       },
     });
 
-    this.deck = new QuestionDeck(context.scene);
+    this.deck = new QuestionDeck(context.scene, context.viewport);
 
     this.view = new QuizView(
       context.layer,

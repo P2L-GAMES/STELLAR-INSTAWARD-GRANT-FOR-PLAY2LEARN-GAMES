@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { Viewport } from '@/core/Viewport';
 import type { GameModeId } from '@/types';
 
 export interface GameModeContext {
@@ -7,6 +8,8 @@ export interface GameModeContext {
   readonly layer: HTMLElement;
   /** Three.js scene, for modes that render 3D content. */
   readonly scene: THREE.Scene;
+  /** Viewport state, for modes whose 3D layout changes with orientation. */
+  readonly viewport: Viewport;
   /** Ask the registry to tear this mode down. The only supported exit path. */
   readonly requestExit: () => void;
 }
